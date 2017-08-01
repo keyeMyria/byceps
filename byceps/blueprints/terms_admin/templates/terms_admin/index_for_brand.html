@@ -1,5 +1,6 @@
 {% extends 'layout/admin/base.html' %}
 {% from 'macros/datetime.html' import render_datetime %}
+{% from 'macros/misc.html' import render_tag %}
 {% from 'macros/user_admin.html' import render_user_avatar_16_and_link %}
 {% set current_page = 'terms_admin' %}
 {% set current_page_brand = brand %}
@@ -9,25 +10,39 @@
 
   <h1>{{ title }}</h1>
 
+  {%- if not current_version_id %}
+  <div class="notification-error" style="margin-bottom: 1rem;"><strong>Achtung:</strong> Es ist keine aktuelle AGB-Version für diese Marke festgelegt.</div>
+  {%- endif %}
+
+  {%- if versions %}
   <table class="index wide">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Titel</th>
-        <th>erstellt</th>
-        <th>durch</th>
+        <th>Titel<br>ID</th>
+        <th>Erstellt</th>
       </tr>
     </thead>
     <tbody>
       {%- for version in versions %}
         <tr>
-          <td>{{ version.id }}</td>
-          <td>{{ version.title }}</td>
-          <td class="nowrap">{{ render_datetime(version.created_at) }}</td>
-          <td>{{ render_user_avatar_16_and_link(version.creator) }}</td>
+          <td>
+            <strong>{{ version.title }}</strong>
+            {%- if version.id == current_version_id %}
+            {{ render_tag('aktuelle Version') }}
+            {%- endif %}
+            <br>
+            {{ version.id|dim }}
+          </td>
+          <td>
+            <span class="nowrap">{{ render_datetime(version.created_at) }}</span><br>
+            von {{ render_user_avatar_16_and_link(version.creator) }}
+          </td>
         </tr>
       {%- endfor %}
     </tbody>
   </table>
+  {%- else %}
+  <p>Es sind keine AGB-Versionen hinterlegt.</p>
+  {%- endif %}
 
 {%- endblock %}

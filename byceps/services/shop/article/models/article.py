@@ -1,6 +1,6 @@
 """
-byceps.services.shop.article.models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+byceps.services.shop.article.models.article
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :Copyright: 2006-2017 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
@@ -8,22 +8,31 @@ byceps.services.shop.article.models
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, NewType, Optional
+from uuid import UUID
 
 from Ranger import Range
 from Ranger.src.Range.Cut import Cut
 
-from ....database import BaseQuery, db, generate_uuid
-from ....util.instances import ReprBuilder
+from .....database import BaseQuery, db, generate_uuid
+from .....typing import PartyID
+from .....util.instances import ReprBuilder
 
-from ...party.models import Party
+from ....party.models import Party
+
+
+ArticleID = NewType('ArticleID', UUID)
+
+
+ArticleNumber = NewType('ArticleNumber', str)
 
 
 class ArticleQuery(BaseQuery):
 
-    def for_party_id(self, party_id):
+    def for_party_id(self, party_id: PartyID) -> BaseQuery:
         return self.filter_by(party_id=party_id)
 
-    def currently_available(self):
+    def currently_available(self) -> BaseQuery:
         """Select only articles that are available in between the
         temporal boundaries for this article, if specified.
         """
@@ -45,6 +54,7 @@ class Article(db.Model):
     __tablename__ = 'shop_articles'
     __table_args__ = (
         db.UniqueConstraint('party_id', 'description'),
+        db.CheckConstraint('available_from < available_until'),
     )
     query_class = ArticleQuery
 
@@ -57,14 +67,16 @@ class Article(db.Model):
     tax_rate = db.Column(db.Numeric(3, 3), nullable=False)
     available_from = db.Column(db.DateTime, nullable=True)
     available_until = db.Column(db.DateTime, nullable=True)
-    quantity = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Integer, db.CheckConstraint('quantity >= 0'), nullable=False)
     max_quantity_per_order = db.Column(db.Integer, nullable=True)
     not_directly_orderable = db.Column(db.Boolean, default=False, nullable=False)
     requires_separate_order = db.Column(db.Boolean, default=False, nullable=False)
     shipping_required = db.Column(db.Boolean, default=False, nullable=False)
 
-    def __init__(self, party_id, item_number, description, price, tax_rate,
-                 quantity, *, available_from=None, available_until=None):
+    def __init__(self, party_id: PartyID, item_number: ArticleNumber,
+                 description: str, price: Decimal, tax_rate: Decimal,
+                 quantity: int, *, available_from: Optional[datetime]=None,
+                 available_until: Optional[datetime]=None) -> None:
         self.party_id = party_id
         self.item_number = item_number
         self.description = description
@@ -75,14 +87,14 @@ class Article(db.Model):
         self.quantity = quantity
 
     @property
-    def tax_rate_as_percentage(self):
+    def tax_rate_as_percentage(self) -> str:
         # Keep a digit after the decimal point in case
         # the tax rate is a fractional number.
         percentage = (self.tax_rate * 100).quantize(Decimal('.0'))
         return str(percentage).replace('.', ',')
 
     @property
-    def availability_range(self):
+    def availability_range(self) -> Range:
         """Assemble the date/time range of the articles availability."""
         start = self.available_from
         end = self.available_until
@@ -99,12 +111,12 @@ class Article(db.Model):
                 return range_all(datetime)
 
     @property
-    def is_available(self):
+    def is_available(self) -> bool:
         """Return `True` if the article is available at this moment in time."""
         now = datetime.now()
         return self.availability_range.contains(now)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('id') \
             .add('party', self.party_id) \
@@ -114,71 +126,8 @@ class Article(db.Model):
             .build()
 
 
-def range_all(theType):
+def range_all(theType: Any) -> Range:
     """Create a range than contains every value of the given type."""
     return Range(
         Cut.belowAll(theType=theType),
         Cut.aboveAll(theType=theType))
-
-
-# -------------------------------------------------------------------- #
-# articles attached to articles
-
-
-class AttachedArticle(db.Model):
-    """An article that is attached to another article."""
-    __tablename__ = 'shop_attached_articles'
-    __table_args__ = (
-        db.UniqueConstraint('article_number', 'attached_to_article_number'),
-    )
-
-    id = db.Column(db.Uuid, default=generate_uuid, primary_key=True)
-    article_number = db.Column(db.Unicode(20),
-                               db.ForeignKey('shop_articles.item_number'),
-                               nullable=False, index=True)
-    article = db.relationship(Article, foreign_keys=[article_number],
-                              backref=db.backref('articles_attached_to', collection_class=set))
-    quantity = db.Column(db.Integer, nullable=False)
-    attached_to_article_number = db.Column(db.Unicode(20),
-                                           db.ForeignKey('shop_articles.item_number'),
-                                           nullable=False, index=True)
-    attached_to_article = db.relationship(Article, foreign_keys=[attached_to_article_number],
-                                          backref=db.backref('attached_articles', collection_class=set))
-
-    def __init__(self, article, quantity, attached_to_article):
-        self.article = article
-        self.quantity = quantity
-        self.attached_to_article = attached_to_article
-
-
-# -------------------------------------------------------------------- #
-# article compilation
-
-
-class ArticleCompilation(object):
-
-    def __init__(self):
-        self._items = []
-
-    def append(self, item):
-        self._items.append(item)
-
-    def __iter__(self):
-        return iter(self._items)
-
-    def is_empty(self):
-        return not self._items
-
-
-class ArticleCompilationItem(object):
-
-    def __init__(self, article, *, fixed_quantity=None):
-        if (fixed_quantity is not None) and fixed_quantity < 1:
-            raise ValueError(
-                'Fixed quantity, if given, must be a positive number.')
-
-        self.article = article
-        self.fixed_quantity = fixed_quantity
-
-    def has_fixed_quantity(self):
-        return self.fixed_quantity is not None

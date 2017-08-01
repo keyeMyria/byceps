@@ -9,17 +9,23 @@ byceps.services.user_avatar.models
 from collections import namedtuple
 from datetime import datetime
 from pathlib import Path
+from typing import NewType
+from uuid import UUID
 
 from flask import current_app, url_for
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from ...database import db, generate_uuid
+from ...typing import UserID
 from ...util.image.models import ImageType
 from ...util.instances import ReprBuilder
 
 
+AvatarID = NewType('AvatarID', UUID)
+
+
 class Avatar(db.Model):
-    """A avatar image uploaded by a user."""
+    """An avatar image uploaded by a user."""
     __tablename__ = 'user_avatars'
 
     id = db.Column(db.Uuid, default=generate_uuid, primary_key=True)
@@ -27,37 +33,37 @@ class Avatar(db.Model):
     creator_id = db.Column(db.Uuid, db.ForeignKey('users.id'), nullable=False)
     _image_type = db.Column('image_type', db.Unicode(4), nullable=False)
 
-    def __init__(self, creator_id, image_type):
+    def __init__(self, creator_id: UserID, image_type: ImageType) -> None:
         self.creator_id = creator_id
         self.image_type = image_type
 
     @hybrid_property
-    def image_type(self):
+    def image_type(self) -> ImageType:
         image_type_str = self._image_type
         if image_type_str is not None:
             return ImageType[image_type_str]
 
     @image_type.setter
-    def image_type(self, image_type):
+    def image_type(self, image_type: ImageType) -> None:
         self._image_type = image_type.name if (image_type is not None) else None
 
     @property
-    def filename(self):
+    def filename(self) -> Path:
         name_without_suffix = str(self.id)
         suffix = '.' + self.image_type.name
         return Path(name_without_suffix).with_suffix(suffix)
 
     @property
-    def path(self):
+    def path(self) -> Path:
         path = current_app.config['PATH_USER_AVATAR_IMAGES']
         return path / self.filename
 
     @property
-    def url(self):
+    def url(self) -> str:
         path = 'users/avatars/{}'.format(self.filename)
         return url_for('global_file', filename=path)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('id') \
             .add('image_type', self.image_type.name) \
@@ -73,7 +79,7 @@ class AvatarSelection(db.Model):
     avatar_id = db.Column(db.Uuid, db.ForeignKey('user_avatars.id'), unique=True, nullable=False)
     avatar = db.relationship(Avatar)
 
-    def __init__(self, user_id, avatar_id):
+    def __init__(self, user_id: UserID, avatar_id: AvatarID) -> None:
         self.user_id = user_id
         self.avatar_id = avatar_id
 

@@ -39,7 +39,7 @@ class AuthorizationServiceTestCase(AbstractAppTestCase):
     # helpers
 
     def create_user(self):
-        user = create_user(4, screen_name='Alice')
+        user = create_user('Alice')
 
         self.db.session.add(user)
         self.db.session.commit()
@@ -52,7 +52,7 @@ class AuthorizationServiceTestCase(AbstractAppTestCase):
         for permission_id in permission_ids:
             permission = authorization_service.create_permission(permission_id,
                                                                  permission_id)
-            authorization_service.assign_permission_to_role(permission, role)
+            authorization_service.assign_permission_to_role(permission.id, role.id)
 
         return role
 

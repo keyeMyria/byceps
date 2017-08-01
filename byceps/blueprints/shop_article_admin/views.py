@@ -13,10 +13,10 @@ from flask import abort, request
 
 from ...services.party import service as party_service
 from ...services.shop.article import service as article_service
-from ...services.shop.order.models import PaymentState
+from ...services.shop.order.models.order import PaymentState
 from ...services.shop.order import ordered_articles_service
 from ...services.shop.sequence import service as sequence_service
-from ...services.ticketing import service as ticketing_service
+from ...services.ticketing import ticket_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_success
 from ...util.templating import templated
@@ -90,7 +90,7 @@ def view_ordered(article_id):
 
     def transform(order_item):
         user = order_item.order.placed_by
-        tickets = ticketing_service.find_tickets_used_by_user(
+        tickets = ticket_service.find_tickets_used_by_user(
             user.id, article.party.id)
         quantity = order_item.quantity
         order = order_item.order
@@ -182,6 +182,8 @@ def update(article_id):
     description = form.description.data.strip()
     price = form.price.data
     tax_rate = form.tax_rate.data
+    available_from = form.available_from.data
+    available_until = form.available_until.data
     quantity = form.quantity.data
     max_quantity_per_order = form.max_quantity_per_order.data
     not_directly_orderable = form.not_directly_orderable.data
@@ -189,7 +191,8 @@ def update(article_id):
     shipping_required = form.shipping_required.data
 
     article_service.update_article(article, description, price, tax_rate,
-                                   quantity, max_quantity_per_order,
+                                   available_from, available_until, quantity,
+                                   max_quantity_per_order,
                                    not_directly_orderable,
                                    requires_separate_order, shipping_required)
 

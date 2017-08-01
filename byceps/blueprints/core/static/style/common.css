@@ -68,9 +68,10 @@ textarea {
   overflow: auto;
 }
 
-abbr {
-  border-bottom: solid 1px;
+abbr[title] {
+  border-bottom: none;
   cursor: help;
+  text-decoration: underline dotted;
 }
 
 address {
@@ -94,7 +95,7 @@ img {
   width: 1em;
 }
 
-.icon[title] {
+span[title] .icon {
   cursor: help;
 }
 
@@ -102,7 +103,7 @@ img {
   display: flex;
 }
 .block-with-icon-icon {
-  flex: 0 0 1;
+  flex: 0 0 auto;
   padding-right: 0.5em;
 }
 .block-with-icon-body {
@@ -176,6 +177,7 @@ td {
   text-align: left;
   vertical-align: top;
 }
+th.number,
 td.number {
   text-align: right;
 }
@@ -263,7 +265,7 @@ fieldset .supplement {
   margin-left: -4px;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 45rem) { /* 720px / 16px */
   label,
   fieldset .label {
     width: 22%;

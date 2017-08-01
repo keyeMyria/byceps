@@ -11,8 +11,9 @@ from datetime import datetime
 from flask import abort, current_app, g, render_template, request, Response
 
 from ...services.party import service as party_service
-from ...services.shop.order.models import PaymentMethod, PaymentState
+from ...services.shop.order.models.order import PaymentMethod, PaymentState
 from ...services.shop.order import service as order_service
+from ...services.shop.order import action_service as order_action_service
 from ...services.shop.sequence import service as sequence_service
 from ...services.user import service as user_service
 from ...util.framework.blueprint import create_blueprint
@@ -27,12 +28,27 @@ from ..shop_order.signals import order_canceled, order_paid
 
 from .authorization import ShopOrderPermission
 from .forms import CancelForm
+from .models import OrderStateFilter
 
 
 blueprint = create_blueprint('shop_order_admin', __name__)
 
 
 permission_registry.register_enum(ShopOrderPermission)
+
+
+# -------------------------------------------------------------------- #
+# hooks
+
+
+@order_paid.connect
+def execute_order_actions(sender, *, order_id=None):
+    """Execute relevant actions for order."""
+    order_action_service.execute_order_actions(order_id)
+
+
+# -------------------------------------------------------------------- #
+# view functions
 
 
 @blueprint.route('/parties/<party_id>', defaults={'page': 1})
@@ -58,10 +74,19 @@ def index_for_party(party_id, page):
 
     only_shipped = request.args.get('only_shipped', type=_str_to_bool)
 
+    order_state_filter = OrderStateFilter.find(only_payment_state, only_shipped)
+
     orders = order_service \
         .get_orders_for_party_paginated(party.id, page, per_page,
                                         only_payment_state=only_payment_state,
                                         only_shipped=only_shipped)
+
+    # Replace order objects in pagination object with order tuples.
+    orders.items = [order.to_tuple() for order in orders.items]
+
+    orderer_ids = {order.placed_by_id for order in orders.items}
+    orderers = user_service.find_users(orderer_ids)
+    orderers_by_id = user_service.index_users_by_id(orderers)
 
     return {
         'party': party,
@@ -69,7 +94,10 @@ def index_for_party(party_id, page):
         'PaymentState': PaymentState,
         'only_payment_state': only_payment_state,
         'only_shipped': only_shipped,
+        'OrderStateFilter': OrderStateFilter,
+        'order_state_filter': order_state_filter,
         'orders': orders,
+        'orderers_by_id': orderers_by_id,
     }
 
 
@@ -82,10 +110,22 @@ def view(order_id):
     if order is None:
         abort(404)
 
+    placed_by = order.placed_by
+
+    order_tuple = order.to_tuple()
+
+    party = party_service.find_party(order.party_id)
+
+    articles_by_item_number = {item.article.item_number: item.article
+                               for item in order.items}
+
     events = _get_events(order)
 
     return {
-        'order': order,
+        'order': order_tuple,
+        'placed_by': placed_by,
+        'party': party,
+        'articles_by_item_number': articles_by_item_number,
         'events': events,
         'PaymentMethod': PaymentMethod,
         'PaymentState': PaymentState,
@@ -119,10 +159,15 @@ def export(order_id):
     if order is None:
         abort(404)
 
+    order_tuple = order.to_tuple()
+    order_items = [item.to_tuple() for item in order.items]
+
     now = datetime.now()
 
     context = {
-        'order': order,
+        'order': order_tuple,
+        'email_address': order.placed_by.email_address,
+        'order_items': order_items,
         'now': now,
         'format_export_amount': _format_export_amount,
         'format_export_datetime': _format_export_datetime,
@@ -221,6 +266,8 @@ def cancel_form(order_id, erroneous_form=None):
     """Show form to cancel an order."""
     order = _get_order_or_404(order_id)
 
+    party = party_service.find_party(order.party_id)
+
     cancel_form = erroneous_form if erroneous_form else CancelForm()
 
     if order.is_canceled:
@@ -231,6 +278,7 @@ def cancel_form(order_id, erroneous_form=None):
 
     return {
         'order': order,
+        'party': party,
         'cancel_form': cancel_form,
     }
 
@@ -274,12 +322,15 @@ def mark_as_paid_form(order_id):
     """Show form to mark an order as paid."""
     order = _get_order_or_404(order_id)
 
+    party = party_service.find_party(order.party_id)
+
     if order.is_paid:
         flash_error('Die Bestellung ist bereits als bezahlt markiert worden.')
         return redirect_to('.view', order_id=order.id)
 
     return {
         'order': order,
+        'party': party,
     }
 
 

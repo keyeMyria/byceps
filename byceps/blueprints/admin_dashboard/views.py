@@ -10,7 +10,10 @@ from datetime import date, timedelta
 
 from flask import abort
 
-from ...services.board import service as board_service
+from ...services.board import \
+    category_service as board_category_service, \
+    posting_service as board_posting_service, \
+    topic_service as board_topic_service
 from ...services.brand import service as brand_service
 from ...services.news import service as news_service
 from ...services.newsletter import service as newsletter_service
@@ -18,11 +21,12 @@ from ...services.orga import service as orga_service
 from ...services.orga import birthday_service as orga_birthday_service
 from ...services.orga_team import service as orga_team_service
 from ...services.party import service as party_service
-from ...services.seating import service as seating_service
+from ...services.seating import area_service as seating_area_service, \
+    seat_service
 from ...services.shop.article import service as article_service
 from ...services.shop.order import service as order_service
 from ...services.terms import service as terms_service
-from ...services.ticketing import service as ticketing_service
+from ...services.ticketing import ticket_service
 from ...services.user import service as user_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.templating import templated
@@ -95,11 +99,13 @@ def view_brand(brand_id):
     newsletter_subscriber_count = newsletter_service \
         .count_subscribers_for_brand(brand.id)
 
-    current_terms_version = terms_service.get_current_version(brand.id)
+    current_terms_version = terms_service.find_current_version(brand.id)
 
-    board_category_count = board_service.count_categories_for_brand(brand.id)
-    board_topic_count = board_service.count_topics_for_brand(brand)
-    board_posting_count = board_service.count_postings_for_brand(brand)
+    board_category_count = board_category_service.count_categories_for_brand(
+        brand.id)
+    board_topic_count = board_topic_service.count_topics_for_brand(brand.id)
+    board_posting_count = board_posting_service.count_postings_for_brand(
+        brand.id)
 
     return {
         'brand': brand,
@@ -135,12 +141,12 @@ def view_party(party_id):
     orga_team_count = len(orga_teams)
     orga_count = sum(len(team.memberships) for team in orga_teams)
 
-    seating_area_count = seating_service.count_areas_for_party(party.id)
-    seat_count = seating_service.count_seats_for_party(party.id)
+    seating_area_count = seating_area_service.count_areas_for_party(party.id)
+    seat_count = seat_service.count_seats_for_party(party.id)
 
     article_count = article_service.count_articles_for_party(party.id)
     open_order_count = order_service.count_open_orders_for_party(party.id)
-    tickets_sold = ticketing_service.count_tickets_for_party(party.id)
+    tickets_sold = ticket_service.count_tickets_for_party(party.id)
 
     return {
         'party': party,

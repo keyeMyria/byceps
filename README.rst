@@ -16,8 +16,13 @@ for more than a decade.
 Since 2014 BYCEPS is the foundation of the public website and local
 party intranet of the LANresort_ event series.
 
+In 2016 and 2017, respectively, `LANresort Bostalsee`_ and NorthCon_
+have been (re-)launched on BYCEPS.
+
 
 .. _LANresort: https://www.lanresort.de/
+.. _LANresort Bostalsee: https://bostalsee.lanresort.de/
+.. _NorthCon: https://www.northcon.de/
 
 
 :Copyright: 2006-2017 Jochen Kupperschmidt
@@ -34,7 +39,7 @@ See ``docs/installation.rst``.
 Testing
 =======
 
-In the activate virtual environment, install tox_ and nose2_:
+In the activated virtual environment, install tox_ and nose2_:
 
 .. code:: sh
 
@@ -62,14 +67,15 @@ debugging middleware and in-browser code evaluation:
 
 .. code:: sh
 
-    $ ./manage.py runserver -p 8080
+    $ BYCEPS_CONFIG=../config/development_admin.py ./manage.py runserver -p 8080
 
-In a production environment, the Gunicorn_ server is highly recommended
-to serve the Python application.
+In a production environment, it is recommended to have the application
+served by uWSGI_ or Gunicorn_.
 
 It is furthermore recommended to run it locally behind nginx_ and have
 the latter both serve static files and provide SSL encryption.
 
 
+.. _uWSGI: http://uwsgi-docs.readthedocs.io/
 .. _Gunicorn: http://gunicorn.org/
 .. _nginx: http://nginx.org/

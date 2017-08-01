@@ -7,38 +7,44 @@ byceps.services.board.models.posting
 """
 
 from datetime import datetime
+from typing import NewType
+from uuid import UUID
 
 from flask import url_for
 
 from ....blueprints.board.authorization import BoardPostingPermission
 from ....database import BaseQuery, db, generate_uuid
+from ....typing import UserID
 from ....util.instances import ReprBuilder
 
 from ...user.models.user import User
 
-from .topic import Topic
+from .topic import Topic, TopicID
+
+
+PostingID = NewType('PostingID', UUID)
 
 
 class PostingQuery(BaseQuery):
 
-    def for_topic(self, topic):
-        return self.filter_by(topic=topic)
+    def for_topic(self, topic_id: TopicID) -> BaseQuery:
+        return self.filter_by(topic_id=topic_id)
 
-    def only_visible_for_user(self, user):
+    def only_visible_for_user(self, user: User) -> BaseQuery:
         """Only return postings the user may see."""
         if not user.has_permission(BoardPostingPermission.view_hidden):
             return self.without_hidden()
 
         return self
 
-    def without_hidden(self):
+    def without_hidden(self) -> BaseQuery:
         """Only return postings every user may see."""
         return self.filter(Posting.hidden == False)
 
-    def earliest_to_latest(self):
+    def earliest_to_latest(self) -> BaseQuery:
         return self.order_by(Posting.created_at.asc())
 
-    def latest_to_earliest(self):
+    def latest_to_earliest(self) -> BaseQuery:
         return self.order_by(Posting.created_at.desc())
 
 
@@ -63,15 +69,15 @@ class Posting(db.Model):
     hidden_by_id = db.Column(db.Uuid, db.ForeignKey('users.id'))
     hidden_by = db.relationship(User, foreign_keys=[hidden_by_id])
 
-    def __init__(self, topic, creator_id, body):
+    def __init__(self, topic: Topic, creator_id: UserID, body: str) -> None:
         self.topic = topic
         self.creator_id = creator_id
         self.body = body
 
-    def is_initial_topic_posting(self, topic):
+    def is_initial_topic_posting(self, topic: Topic) -> bool:
         return self == topic.initial_posting
 
-    def may_be_updated_by_user(self, user):
+    def may_be_updated_by_user(self, user: User) -> bool:
         return not self.topic.locked and (
             (
                 user == self.creator and \
@@ -80,7 +86,7 @@ class Posting(db.Model):
             user.has_permission(BoardPostingPermission.update_of_others)
         )
 
-    def is_unseen(self, user, last_viewed_at):
+    def is_unseen(self, user: User, last_viewed_at: datetime) -> bool:
         # Don't display any posting as new to a guest.
         if user.is_anonymous:
             return False
@@ -92,19 +98,19 @@ class Posting(db.Model):
         return (last_viewed_at is None) or (self.created_at > last_viewed_at)
 
     @property
-    def anchor(self):
+    def anchor(self) -> str:
         """Return the URL anchor for this posting."""
         return 'posting-{}'.format(self.id)
 
     @property
-    def external_url(self):
+    def external_url(self) -> str:
         """Return the absolute URL of this posting (in its topic)."""
         return url_for('board.posting_view', posting_id=self.id, _external=True)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.id == other.id
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         builder = ReprBuilder(self) \
             .add_with_lookup('id') \
             .add('topic', self.topic.title) \
@@ -124,6 +130,6 @@ class InitialTopicPostingAssociation(db.Model):
     posting_id = db.Column(db.Uuid, db.ForeignKey('board_postings.id'), unique=True, nullable=False)
     posting = db.relationship(Posting)
 
-    def __init__(self, topic, posting):
+    def __init__(self, topic: Topic, posting: Posting) -> None:
         self.topic = topic
         self.posting = posting

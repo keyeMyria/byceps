@@ -16,8 +16,8 @@ class Dimensions(namedtuple('Dimensions', ['width', 'height'])):
     __slots__ = ()
 
     @property
-    def is_square(self):
+    def is_square(self) -> bool:
         return self.width == self.height
 
 
-ImageType = Enum('ImageType', ['gif', 'jpeg', 'png'])  # type: ignore
+ImageType = Enum('ImageType', ['gif', 'jpeg', 'png'])

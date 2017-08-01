@@ -16,7 +16,7 @@ from ..user.models.user import User
 
 class TimeSlotQuery(BaseQuery):
 
-    def for_party_id(self, party_id):
+    def for_party_id(self, party_id) -> BaseQuery:
         return self.filter_by(party_id=party_id)
 
 
@@ -36,7 +36,7 @@ class TimeSlot(db.Model):
     ends_at = db.Column(db.DateTime, nullable=False)
 
     @hybrid_property
-    def range(self):
+    def range(self) -> DateTimeRange:
         return DateTimeRange(self.starts_at, self.ends_at)
 
 

@@ -13,11 +13,11 @@ from flask import appcontext_pushed, g
 from byceps.application import create_app
 from byceps.services.authorization import service as authorization_service
 
-from .base import CONFIG_FILENAME_TEST
+from .base import CONFIG_FILENAME_TEST_PARTY
 
 
 @contextmanager
-def app_context(*, config_filename=CONFIG_FILENAME_TEST):
+def app_context(*, config_filename=CONFIG_FILENAME_TEST_PARTY):
     app = create_app(config_filename)
 
     with app.app_context():
@@ -51,6 +51,6 @@ def assign_permissions_to_user(user_id, role_id, permission_ids):
     for permission_id in permission_ids:
         permission = authorization_service.create_permission(permission_id,
                                                              permission_id)
-        authorization_service.assign_permission_to_role(permission, role)
+        authorization_service.assign_permission_to_role(permission.id, role.id)
 
     authorization_service.assign_role_to_user(user_id, role.id)

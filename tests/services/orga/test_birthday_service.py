@@ -6,7 +6,6 @@
 from datetime import date
 
 from freezegun import freeze_time
-from nose2.tools import params
 
 from byceps.services.orga import birthday_service
 
@@ -42,4 +41,4 @@ def test_sort():
 
 
 def create_user(date_of_birth):
-    return create_user_with_detail(42, date_of_birth=date_of_birth)
+    return create_user_with_detail(date_of_birth=date_of_birth)

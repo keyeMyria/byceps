@@ -8,20 +8,22 @@ byceps.blueprints.user.views
 
 from operator import attrgetter
 
-from flask import abort, g, jsonify, request, Response
+from flask import abort, g, jsonify, request
 
 from ...config import get_site_mode, get_user_registration_enabled
 from ...services.country import service as country_service
 from ...services.newsletter import service as newsletter_service
 from ...services.orga_team import service as orga_team_service
-from ...services.ticketing import service as ticketing_service
+from ...services.terms import service as terms_service
+from ...services.ticketing import attendance_service, ticket_service
 from ...services.user import service as user_service
+from ...services.user import creation_service as user_creation_service
 from ...services.user_badge import service as badge_service
 from ...services.verification_token import service as verification_token_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_notice, flash_success
 from ...util.templating import templated
-from ...util.views import redirect_to
+from ...util.views import create_empty_json_response, redirect_to
 
 from .forms import DetailsForm, RequestConfirmationEmailForm, UserCreateForm
 from . import signals
@@ -44,20 +46,20 @@ def view(user_id):
     if user.deleted:
         abort(410, 'User account has been deleted.')
 
-    badges = badge_service.get_badges_for_user(user.id)
+    badges_with_awarding_quantity = badge_service.get_badges_for_user(user.id)
 
     orga_team_membership = orga_team_service.find_membership_for_party(user.id,
         g.party.id)
 
-    current_party_tickets = ticketing_service.find_tickets_used_by_user(user.id,
+    current_party_tickets = ticket_service.find_tickets_used_by_user(user.id,
         g.party.id)
 
-    attended_parties = ticketing_service.get_attended_parties(user.id)
+    attended_parties = attendance_service.get_attended_parties(user.id)
     attended_parties.sort(key=attrgetter('starts_at'), reverse=True)
 
     return {
         'user': user,
-        'badges': badges,
+        'badges_with_awarding_quantity': badges_with_awarding_quantity,
         'orga_team_membership': orga_team_membership,
         'current_party_tickets': current_party_tickets,
         'attended_parties': attended_parties,
@@ -73,10 +75,10 @@ def view_as_json(user_id):
     user = user_service.find_user(user_id)
 
     if not user:
-        return _empty_json_response(404)
+        return create_empty_json_response(404)
 
     if user.deleted:
-        return _empty_json_response(410)
+        return create_empty_json_response(410)
 
     return jsonify({
         'id': user.id,
@@ -95,7 +97,7 @@ def view_current():
         abort(404)
 
     if get_site_mode().is_public():
-        brand_id = g.party.brand.id
+        brand_id = g.party.brand_id
         subscribed_to_newsletter = newsletter_service.is_subscribed(user.id,
                                                                     brand_id)
     else:
@@ -116,16 +118,12 @@ def view_current_as_json():
     user = g.current_user
 
     if not user.is_active:
-        return _empty_json_response(404)
+        return create_empty_json_response(404)
 
     return jsonify({
         'id': user.id,
         'screen_name': user.screen_name,
     })
-
-
-def _empty_json_response(status):
-    return Response('{}', status=status, mimetype='application/json')
 
 
 @blueprint.route('/create')
@@ -136,7 +134,12 @@ def create_form(erroneous_form=None):
         flash_error('Das Erstellen von Benutzerkonten ist deaktiviert.')
         abort(403)
 
-    form = erroneous_form if erroneous_form else UserCreateForm()
+    brand_id = g.party.brand_id
+    terms_version = terms_service.get_current_version(brand_id)
+
+    form = erroneous_form if erroneous_form \
+        else UserCreateForm(terms_version_id=terms_version.id)
+
     return {'form': form}
 
 
@@ -156,6 +159,7 @@ def create():
     last_name = form.last_name.data.strip()
     email_address = form.email_address.data.lower()
     password = form.password.data
+    terms_version_id = form.terms_version_id.data
     consent_to_terms = form.consent_to_terms.data
     subscribe_to_newsletter = form.subscribe_to_newsletter.data
 
@@ -169,12 +173,19 @@ def create():
             'Diese E-Mail-Adresse ist bereits einem Benutzerkonto zugeordnet.')
         return create_form(form)
 
+    brand_id = g.party.brand_id
+
+    terms_version = terms_service.find_version(terms_version_id)
+    if terms_version.brand_id != brand_id:
+        abort(400, 'Die AGB-Version gehört nicht zu dieser Veranstaltung.')
+
     try:
-        user = user_service.create_user(screen_name, email_address, password,
-                                        first_names, last_name,
-                                        g.party.brand.id,
-                                        subscribe_to_newsletter)
-    except user_service.UserCreationFailed:
+        user = user_creation_service.create_user(screen_name, email_address,
+                                                 password, first_names,
+                                                 last_name, brand_id,
+                                                 terms_version.id,
+                                                 subscribe_to_newsletter)
+    except user_creation_service.UserCreationFailed:
         flash_error('Das Benutzerkonto für "{}" konnte nicht angelegt werden.',
                     screen_name)
         return create_form(form)

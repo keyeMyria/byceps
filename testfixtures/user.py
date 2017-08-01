@@ -10,31 +10,30 @@ from datetime import date
 
 from byceps.database import generate_uuid
 from byceps.services.user.models.detail import UserDetail
-from byceps.services.user import service as user_service
+from byceps.services.user import creation_service as user_creation_service
 
 
-def create_user(number, *, screen_name=None, email_address=None, enabled=True):
-    if not screen_name:
-        screen_name = 'User-{:d}'.format(number)
+def create_user(screen_name='Faith', *, email_address=None, enabled=True):
+    user_id = generate_uuid()
 
     if not email_address:
-        email_address = 'user{:03d}@example.com'.format(number)
+        email_address = 'user{}@example.com'.format(user_id)
 
-    user = user_service.build_user(screen_name, email_address)
-    user.id = generate_uuid()
+    user = user_creation_service.build_user(screen_name, email_address)
+    user.id = user_id
     user.enabled = enabled
+
     return user
 
 
-def create_user_with_detail(number, *,
-                            screen_name=None,
+def create_user_with_detail(screen_name='Faith', *,
                             email_address=None,
                             enabled=True,
                             first_names='John Joseph',
                             last_name='Doe',
                             date_of_birth=None):
-    user = create_user(number, screen_name=screen_name,
-                       email_address=email_address, enabled=enabled)
+    user = create_user(screen_name, email_address=email_address,
+                       enabled=enabled)
 
     detail = UserDetail(user=user)
     detail.first_names = first_names

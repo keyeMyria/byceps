@@ -12,7 +12,7 @@ from ...services.brand import service as brand_service
 from ...services.party import service as party_service
 from ...services.shop.article import service as article_service
 from ...services.shop.order import service as order_service
-from ...services.ticketing import service as ticketing_service
+from ...services.ticketing import ticket_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_success
 from ...util.templating import templated
@@ -59,7 +59,7 @@ def index_for_brand(brand_id, page):
 
     order_count_by_party_id = order_service.get_order_count_by_party_id()
 
-    ticket_count_by_party_id = ticketing_service.get_ticket_count_by_party_id()
+    ticket_count_by_party_id = ticket_service.get_ticket_count_by_party_id()
 
     return {
         'brand': brand,
@@ -146,9 +146,11 @@ def update(party_id):
     title = form.title.data.strip()
     starts_at = form.starts_at.data
     ends_at = form.ends_at.data
+    is_archived = form.is_archived.data
 
     try:
-        party = party_service.update_party(party_id, title, starts_at, ends_at)
+        party = party_service.update_party(party_id, title, starts_at, ends_at,
+                                           is_archived)
     except party_service.UnknownPartyId:
         abort(404, 'Unknown party ID "{}".'.format(party_id))
 

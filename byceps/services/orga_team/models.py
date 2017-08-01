@@ -6,11 +6,18 @@ byceps.services.orga_team.models
 :License: Modified BSD, see LICENSE for details.
 """
 
+from typing import NewType
+from uuid import UUID
+
 from ...database import BaseQuery, db, generate_uuid
+from ...typing import PartyID, UserID
 from ...util.instances import ReprBuilder
 
 from ..party.models import Party
 from ..user.models.user import User
+
+
+OrgaTeamID = NewType('OrgaTeamID', UUID)
 
 
 class OrgaTeam(db.Model):
@@ -25,11 +32,11 @@ class OrgaTeam(db.Model):
     party = db.relationship(Party)
     title = db.Column(db.Unicode(40), nullable=False)
 
-    def __init__(self, party_id, title):
+    def __init__(self, party_id: PartyID, title: str) -> None:
         self.party_id = party_id
         self.title = title
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('id') \
             .add_with_lookup('party_id') \
@@ -40,8 +47,11 @@ class OrgaTeam(db.Model):
 
 class MembershipQuery(BaseQuery):
 
-    def for_party_id(self, party_id):
+    def for_party_id(self, party_id: PartyID) -> BaseQuery:
         return self.join(OrgaTeam).filter_by(party_id=party_id)
+
+
+MembershipID = NewType('MembershipID', UUID)
 
 
 class Membership(db.Model):
@@ -59,11 +69,11 @@ class Membership(db.Model):
     user = db.relationship(User, collection_class=set, backref='orga_team_memberships')
     duties = db.Column(db.Unicode(40))
 
-    def __init__(self, orga_team_id, user_id):
+    def __init__(self, orga_team_id: OrgaTeamID, user_id: UserID) -> None:
         self.orga_team_id = orga_team_id
         self.user_id = user_id
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('id') \
             .add_with_lookup('orga_team') \

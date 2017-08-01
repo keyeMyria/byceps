@@ -6,8 +6,6 @@ byceps.blueprints.snippet_admin.views
 :License: Modified BSD, see LICENSE for details.
 """
 
-from operator import attrgetter
-
 from flask import abort, g, render_template, request
 
 from ...services.party import service as party_service
@@ -42,7 +40,7 @@ def index_for_party(party_id):
     party = _get_party_or_404(party_id)
 
     snippets = snippet_service.get_snippets_for_party_with_current_versions(
-        party)
+        party.id)
 
     mountpoints = snippet_service.get_mountpoints_for_party(party.id)
 
@@ -69,16 +67,12 @@ def view_version(snippet_version_id):
             'snippet_body': snippet_context['body'],
             'error_occured': False,
         }
-
-        status_code = 200
     except Exception as e:
         context = {
             'version': version,
             'error_occured': True,
             'error_message': str(e),
         }
-
-        status_code = 500
 
     return render_template('snippet_admin/view_version.html', **context)
 
@@ -310,9 +304,6 @@ def create_mountpoint_form(snippet_id):
     """Show form to create a mountpoint."""
     snippet = _find_snippet_by_id(snippet_id)
     party = party_service.find_party(snippet.party_id)
-
-    documents = snippet_service.get_documents_for_party(party)
-    document_choices = list(map(attrgetter('id', 'name'), documents))
 
     form = MountpointCreateForm()
 

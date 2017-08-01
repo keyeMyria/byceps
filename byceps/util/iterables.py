@@ -7,13 +7,15 @@ byceps.util.iterables
 """
 
 from itertools import tee
-from typing import Any, Callable, Iterable, Iterator, Tuple
+from typing import Callable, Iterable, Iterator, Optional, Tuple, TypeVar
 
 
-Predicate = Callable[[Any], bool]
+T = TypeVar('T')
+
+Predicate = Callable[[T], bool]
 
 
-def find(predicate: Predicate, iterable: Iterable[Any]) -> Any:
+def find(predicate: Predicate, iterable: Iterable[T]) -> Optional[T]:
     """Return the first element in the iterable that matches the
     predicate.
 
@@ -23,8 +25,10 @@ def find(predicate: Predicate, iterable: Iterable[Any]) -> Any:
         if predicate(elem):
             return elem
 
+    return None
 
-def index_of(predicate: Predicate, iterable: Iterable[Any]) -> int:
+
+def index_of(predicate: Predicate, iterable: Iterable[T]) -> Optional[int]:
     """Return the (0-based) index of the first element in the iterable
     that matches the predicate.
 
@@ -34,8 +38,10 @@ def index_of(predicate: Predicate, iterable: Iterable[Any]) -> int:
         if predicate(elem):
             return i
 
+    return None
 
-def pairwise(iterable: Iterable[Any]) -> Iterator[Tuple[Any, Any]]:
+
+def pairwise(iterable: Iterable[T]) -> Iterator[Tuple[T, T]]:
     """Return each element paired with its next one.
 
     Example:

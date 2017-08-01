@@ -4,7 +4,7 @@
 {% from 'macros/shop_article_admin.html' import render_article_link %}
 {% from 'macros/shop_order_admin.html' import render_order_payment_method, render_order_payment_state %}
 {% from 'macros/user_admin.html' import render_user_avatar_20_and_link %}
-{% set current_page_party = order.party %}
+{% set current_page_party = party %}
 {% set title = 'Bestellung ' ~ order.order_number %}
 
 {% block head %}
@@ -33,7 +33,7 @@
   <nav class="breadcrumbs">
     <ol>
       <li>Bestellungen</li>
-      <li><a href="{{ url_for('.index_for_party', party_id=order.party.id) }}">{{ order.party.title }}</a></li>
+      <li><a href="{{ url_for('.index_for_party', party_id=party.id) }}">{{ party.title }}</a></li>
     </ol>
   </nav>
   <h1>{{ title }}</h1>
@@ -52,7 +52,7 @@
         {%- endif %}
         </li>
         <li class="divider"></li>
-        {%- if order.payment_state != PaymentState.canceled %}
+        {%- if not order.is_canceled %}
           {%- if order.is_open %}
         <li><a href="{{ url_for('.mark_as_paid_form', order_id=order.id) }}">{{ render_icon('payment') }} Bestellung als bezahlt markieren</a></li>
           {%- endif %}
@@ -130,7 +130,7 @@
   <table class="index">
     <tr>
       <th>Benutzer</th>
-      <td>{{ render_user_avatar_20_and_link(order.placed_by) }}</td>
+      <td>{{ render_user_avatar_20_and_link(placed_by) }}</td>
     </tr>
     <tr>
       <th>Name</th>
@@ -142,11 +142,7 @@
     </tr>
     <tr>
       <th>E-Mail-Adresse</th>
-      <td>{{ order.placed_by.email_address }}</td>
-    </tr>
-    <tr>
-      <th>Geburtsdatum</th>
-      <td>{{ render_date(order.date_of_birth, smart=False) }}</td>
+      <td>{{ placed_by.email_address }}</td>
     </tr>
   </table>
 
@@ -163,16 +159,16 @@
     <tfoot>
       <tr>
         <th colspan="3">Gesamtbetrag</th>
-        <td class="number"><strong>{{ order.calculate_total_price()|format_euro_amount }}</strong></td>
+        <td class="number"><strong>{{ order.total_price|format_euro_amount }}</strong></td>
       </tr>
     </tfoot>
     <tbody>
       {%- for item in order.items|sort(attribute='article_number') %}
       <tr>
         <td class="number">{{ item.quantity }}</td>
-        <td class="nowrap">{{ render_article_link(item.article) }}</td>
+        <td class="nowrap">{{ render_article_link(articles_by_item_number[item.article_number]) }}</td>
         <td><strong>{{ item.description }}</strong></td>
-        <td class="number">{{ item.price|format_euro_amount }}</td>
+        <td class="number">{{ item.unit_price|format_euro_amount }}</td>
       </tr>
       {%- endfor %}
     </tbody>
@@ -186,7 +182,7 @@
           {%- set icon_name = 'disabled' %}
           {%- set body %}
             <span class="user-link">{{ render_user_avatar_20_and_link(event.initiator) }}</span>
-            hat die Bestellung {{ render_order_payment_state(PaymentState.canceled) }}
+            hat die Bestellung {{ render_order_payment_state(PaymentState.canceled_before_paid) }}
             (war vorher {{ render_order_payment_state(PaymentState[event.data['former_payment_state']]) }}).
             Begründung:<br>
             <blockquote><pre>{{ event.data['reason'] }}</pre></blockquote>
@@ -238,7 +234,7 @@
       <table class="activity-stream-item">
         <tr>
           <td><span class="icon-container">{{ render_icon('add') }}</span></td>
-          <td><span class="user-link">{{ render_user_avatar_20_and_link(order.placed_by) }}</span> hat die Bestellung <strong>{{ order.order_number }}</strong> aufgegeben.</td>
+          <td><span class="user-link">{{ render_user_avatar_20_and_link(placed_by) }}</span> hat die Bestellung <strong>{{ order.order_number }}</strong> aufgegeben.</td>
           <td class="timestamp">{{ render_datetime(order.created_at) }}</td>
         </tr>
       </table>

@@ -11,7 +11,7 @@ from flask import abort, g, request
 from ...services.country import service as country_service
 from ...services.shop.article import service as article_service
 from ...services.shop.cart.models import Cart
-from ...services.shop.order.models import PaymentMethod
+from ...services.shop.order.models.order import PaymentMethod
 from ...services.shop.order import service as order_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_success
@@ -79,11 +79,15 @@ def order():
         return order_form(form)
 
     orderer = form.get_orderer(g.current_user._user)
-    payment_method = PaymentMethod.bank_transfer
 
-    order_service.create_order(g.party.id, orderer, payment_method, cart)
+    try:
+        order = _submit_order(orderer, cart)
+    except order_service.OrderFailed:
+        flash_error('Die Bestellung ist fehlgeschlagen.')
+        return order_form(form)
 
-    flash_success('Deine Bestellung wurde entgegen genommen. Vielen Dank!')
+    _flash_order_success(order)
+
     return redirect_to('snippet.order_placed')
 
 
@@ -160,15 +164,19 @@ def order_single(article_id):
         return order_single_form(article.id, form)
 
     orderer = form.get_orderer(user)
-    payment_method = PaymentMethod.bank_transfer
 
     cart = Cart()
     for item in article_compilation:
         cart.add_item(item.article, item.fixed_quantity)
 
-    order_service.create_order(g.party.id, orderer, payment_method, cart)
+    try:
+        order = _submit_order(orderer, cart)
+    except order_service.OrderFailed:
+        flash_error('Die Bestellung ist fehlgeschlagen.')
+        return order_form(form)
 
-    flash_success('Deine Bestellung wurde entgegen genommen. Vielen Dank!')
+    _flash_order_success(order)
+
     return redirect_to('snippet.order_placed')
 
 
@@ -179,3 +187,15 @@ def _get_article_or_404(article_id):
         abort(404)
 
     return article
+
+
+def _submit_order(orderer, cart):
+    payment_method = PaymentMethod.bank_transfer
+
+    return order_service.create_order(g.party.id, orderer, payment_method, cart)
+
+
+def _flash_order_success(order):
+    flash_success('Deine Bestellung mit der Bestellnummer <strong>{}</strong> '
+                  'wurde entgegen genommen. Vielen Dank!', order.order_number,
+                  text_is_safe=True)

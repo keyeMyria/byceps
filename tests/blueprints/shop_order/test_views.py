@@ -3,12 +3,11 @@
 :License: Modified BSD, see LICENSE for details.
 """
 
-from datetime import date
+from unittest.mock import patch
 
-from byceps.services.shop.article.models import Article
-from byceps.services.shop.order.models import Order, PaymentState
+from byceps.services.shop.article.models.article import Article
+from byceps.services.shop.order.models.order import Order
 from byceps.services.shop.sequence.models import Purpose
-from byceps.services.snippet.models.snippet import Snippet
 
 from testfixtures.authentication import create_session_token
 from testfixtures.shop_article import create_article
@@ -40,7 +39,7 @@ class ShopTestCase(AbstractAppTestCase):
         self.db.session.commit()
 
     def setup_orderer(self):
-        self.orderer = create_user(1)
+        self.orderer = create_user()
 
         self.db.session.add(self.orderer)
         self.db.session.commit()
@@ -57,7 +56,43 @@ class ShopTestCase(AbstractAppTestCase):
 
         self.article_id = article.id
 
-    def test_order_article(self):
+    @patch('byceps.blueprints.shop_order.signals.order_placed.send')
+    def test_order(self, order_placed_mock):
+        article_before = self.get_article()
+        self.assertEqual(article_before.quantity, 5)
+
+        url = '/shop/order'
+        article_quantity_key = 'article_{}'.format(self.article_id)
+        form_data = {
+            'first_names': 'Hiro',
+            'last_name': 'Protagonist',
+            'country': 'State of Mind',
+            'zip_code': '31337',
+            'city': 'Atrocity',
+            'street': 'L33t Street 101',
+            article_quantity_key: 3,
+        }
+        with self.client(user=self.orderer) as client:
+            response = client.post(url, data=form_data)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers.get('Location'), 'http://example.com/shop/order_placed')
+
+        article_afterwards = self.get_article()
+        self.assertEqual(article_afterwards.quantity, 2)
+
+        order = Order.query.filter_by(placed_by=self.orderer).one()
+        self.assertEqual(order.order_number, 'AEC-01-B00005')
+        self.assertEqual(len(order.items), 1)
+        self.assertEqual(order.items[0].article.id, self.article_id)
+        self.assertEqual(order.items[0].price, article_before.price)
+        self.assertEqual(order.items[0].tax_rate, article_before.tax_rate)
+        self.assertEqual(order.items[0].quantity, 3)
+
+        order_placed_mock.assert_called_once_with(None, order_id=order.id)
+
+    @patch('byceps.blueprints.shop_order.signals.order_placed.send')
+    def test_order_single(self, order_placed_mock):
         article_before = self.get_article()
         self.assertEqual(article_before.quantity, 5)
 
@@ -65,7 +100,6 @@ class ShopTestCase(AbstractAppTestCase):
         form_data = {
             'first_names': 'Hiro',
             'last_name': 'Protagonist',
-            'date_of_birth': '01.01.1970',
             'country': 'State of Mind',
             'zip_code': '31337',
             'city': 'Atrocity',
@@ -88,6 +122,8 @@ class ShopTestCase(AbstractAppTestCase):
         self.assertEqual(order.items[0].price, article_before.price)
         self.assertEqual(order.items[0].tax_rate, article_before.tax_rate)
         self.assertEqual(order.items[0].quantity, 1)
+
+        order_placed_mock.assert_called_once_with(None, order_id=order.id)
 
     # helpers
 

@@ -6,12 +6,20 @@ byceps.services.authorization.models
 :License: Modified BSD, see LICENSE for details.
 """
 
+from typing import NewType
+
 from sqlalchemy.ext.associationproxy import association_proxy
 
 from ...database import db
+from ...typing import UserID
 from ...util.instances import ReprBuilder
 
 from ..user.models.user import User
+
+
+PermissionID = NewType('PermissionID', str)
+
+RoleID = NewType('RoleID', str)
 
 
 class Permission(db.Model):
@@ -26,11 +34,11 @@ class Permission(db.Model):
 
     roles = association_proxy('role_permissions', 'role')
 
-    def __init__(self, id, title):
-        self.id = id
+    def __init__(self, permission_id: PermissionID, title: str) -> None:
+        self.id = permission_id
         self.title = title
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('id') \
             .build()
@@ -51,11 +59,11 @@ class Role(db.Model):
     permissions = association_proxy('role_permissions', 'permission')
     users = association_proxy('user_roles', 'user')
 
-    def __init__(self, id, title):
-        self.id = id
+    def __init__(self, role_id: RoleID, title: str) -> None:
+        self.id = role_id
         self.title = title
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('id') \
             .build()
@@ -72,10 +80,11 @@ class RolePermission(db.Model):
     permission_id = db.Column(db.Unicode(40), db.ForeignKey('authz_permissions.id'), primary_key=True)
     permission = db.relationship(Permission, backref='role_permissions', collection_class=set, lazy='joined')
 
-    def __init__(self, permission):
-        self.permission = permission
+    def __init__(self, role_id: RoleID, permission_id: PermissionID) -> None:
+        self.role_id = role_id
+        self.permission_id = permission_id
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('role') \
             .add_with_lookup('permission') \
@@ -96,11 +105,11 @@ class UserRole(db.Model):
                            collection_class=set,
                            lazy='joined')
 
-    def __init__(self, user_id, role_id):
+    def __init__(self, user_id: UserID, role_id: RoleID) -> None:
         self.user_id = user_id
         self.role_id = role_id
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return ReprBuilder(self) \
             .add_with_lookup('user') \
             .add_with_lookup('role') \

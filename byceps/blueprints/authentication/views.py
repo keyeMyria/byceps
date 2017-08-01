@@ -6,7 +6,7 @@ byceps.blueprints.authentication.views
 :License: Modified BSD, see LICENSE for details.
 """
 
-from flask import abort, g, request, url_for
+from flask import abort, current_app, g, request, url_for
 
 from ...config import get_site_mode, get_user_registration_enabled
 from ...services.authentication.exceptions import AuthenticationFailed
@@ -40,7 +40,7 @@ blueprint = create_blueprint('authentication', __name__)
 # current user
 
 
-class CurrentUser(object):
+class CurrentUser:
 
     def __init__(self, user, avatar_url):
         self._user = user
@@ -147,12 +147,14 @@ def login():
             abort(403)
 
     if not in_admin_mode:
-        terms_version = terms_service.get_current_version(g.party.brand.id)
+        brand_id = g.party.brand_id
+
+        terms_version = terms_service.find_current_version(brand_id)
 
         if not terms_version:
             raise Exception(
                 'No terms of service defined for brand "{}", denying login.'
-                .format(g.party.brand.id))
+                .format(brand_id))
 
         if not terms_service.has_user_accepted_version(user.id, terms_version.id):
             verification_token = verification_token_service \
@@ -169,6 +171,8 @@ def login():
 
     session_token = session_service.find_session_token_for_user(user.id)
     if session_token is None:
+        current_app.logger.error(
+            'No session token found for user %s on attempted login.', user)
         abort(500)
 
     user_session.start(user.id, session_token.token, permanent=permanent)

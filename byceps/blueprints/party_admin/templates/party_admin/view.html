@@ -13,6 +13,12 @@
   </nav>
   <h1>{{ party.title }}</h1>
 
+  <div class="button-row">
+    {%- if g.current_user.has_permission(PartyPermission.update) %}
+    <a class="button" href="{{ url_for('.update_form', party_id=party.id) }}">{{ render_icon('edit') }} Bearbeiten</a>
+    {%- endif %}
+  </div>
+
   <table class="index">
     <tr>
       <th>Marke</th>
@@ -25,6 +31,16 @@
     <tr>
       <th>Ende</th>
       <td>{{ render_datetime(party.ends_at) }}</td>
+    </tr>
+    <tr>
+      <th>Status</th>
+      <td>
+        {%- if party.is_archived -%}
+        {{ render_icon('archived', title='archiviert') }} <em>archiviert</em>
+        {%- else -%}
+        aktiv
+        {%- endif -%}
+      </td>
     </tr>
   </table>
 

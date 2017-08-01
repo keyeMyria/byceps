@@ -6,24 +6,45 @@
 {% block head %}
   <style>
     .orga-overview {
-      display: -webkit-flex;
       display: flex;
-      -webkit-flex-wrap: wrap;
-      flex-wrap: wrap;
-      -webkit-justify-content: center;
+      flex-direction: column;
       justify-content: center;
     }
-    .orga-overview li {
+
+    .orga-overview li.orga {
+      align-items: center;
+      display: flex;
       font-size: 0.9rem;
       margin: 1rem 0;
       padding: 0;
-      text-align: center;
-      width: 200px;
+      text-align: left;
     }
-    .orga-overview li p {
+
+    .orga-overview .orga-avatar {
+      margin-right: 1rem;
+    }
+
+    .orga-overview .orga-details {
       line-height: 1.4;
       margin: 0.3rem 0 0 0;
       padding: 0;
+    }
+
+    @media (min-width: 28rem) {
+      .orga-overview {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .orga-overview li.orga {
+        flex-direction: column;
+        text-align: center;
+        width: 200px;
+      }
+
+      .orga-overview .orga-avatar {
+        margin-right: 0;
+      }
     }
   </style>
 {%- endblock %}
@@ -35,20 +56,21 @@
 {{ render_snippet('orga_team_intro', ignore_if_unknown=True)|safe }}
 
   <ol class="orga-overview">
-    {%- for membership in memberships|sort(attribute='user.screen_name') %}
-    {%- set user = membership.user %}
-    <li>
-      <div>
-        {{ render_user_avatar_96(user) }}
+    {%- for orga in orgas|sort(attribute='user.screen_name') %}
+    <li class="orga">
+      <div class="orga-avatar">
+        {{ render_user_avatar_96(orga.user) }}
       </div>
-      <p>
-        <strong>{{ user.screen_name }}</strong><br>
-        {%- if user.detail.full_name %}
-        {{ user.detail.full_name }}<br>
+      <div class="orga-details">
+        <strong>{{ orga.user.screen_name }}</strong><br>
+        {%- if orga.full_name %}
+        {{ orga.full_name }}<br>
         {%- endif -%}
-        {{ membership.orga_team.title }}
-        {%- if membership.duties %} ({{ membership.duties }}){% endif %}
-      </p>
+        {%- filter dim %}
+        {{ orga.team_name }}
+        {%- if orga.duties %} ({{ orga.duties }}){% endif %}
+        {%- endfilter %}
+      </div>
     </li>
     {%- endfor %}
   </ol>

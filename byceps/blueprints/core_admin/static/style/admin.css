@@ -22,14 +22,21 @@ a {
 /* grid */
 
 .row {
+  align-items: baseline;
   display: flex;
   flex-wrap: wrap;
   margin: -20px 0 0 -20px;
 }
 
+.row--space-around {
+  justify-content: space-around;
+}
+
+.row--space-between {
+  justify-content: space-between;
+}
+
 .column-auto {
-  flex: 1 0 0;
-  max-width: 100%;
   padding: 20px 0 0 20px;
 }
 
@@ -62,7 +69,7 @@ a {
   flex: 0 0 20%;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 60rem) { /* 960px / 16px */
   #page-grid {
     flex-direction: row;
   }
@@ -90,7 +97,6 @@ main {
 .box {
   background-color: #ffffff;
   border-radius: 3px;
-  overflow: hidden;
 }
 #main {
   padding: 20px 40px 40px 40px;
@@ -142,7 +148,7 @@ main {
   text-decoration: underline;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 60rem) { /* 960px / 16px */
   #header-content .head strong.big {
     font-size: 1.125rem; /* 18px / 16px */
   }
@@ -253,7 +259,7 @@ main {
   padding: 0 20px;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 60rem) { /* 960px / 16px */
   #sidebar {
     flex-direction: column;
   }
@@ -363,7 +369,7 @@ h2 small {
 
 /* tables */
 
-@media (max-width: 960px) {
+@media (max-width: 60rem) { /* 960px / 16px */
   table.index.wide {
     display: block;
     overflow-x: auto;
@@ -446,6 +452,20 @@ fieldset.buttons {
 }
 
 
+/* buttons */
+
+.button--seamless,
+.button--seamless:active,
+.button--seamless:hover {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.button--seamless:hover {
+  border: #cccccc solid 1px;
+}
+
+
 /* filters */
 
 .filters {
@@ -456,25 +476,7 @@ fieldset.buttons {
   font-size: 0.75rem; /* 12px / 16px */
   white-space: nowrap;
 }
-.filter ol,
-.filter li {
-  display: inline-block;
-}
-.filter li::after {
-  opacity: 0.5;
-}
-.filter li:last-child::after {
-  content: none;
-}
-.filter li a {
-  opacity: 0.3;
-}
-.filter a:hover {
-  opacity: 0.6;
-}
-.filter li :not(a) {
-  opacity: 1;
-}
+
 .filter .tag {
   background-color: #666666;
 }

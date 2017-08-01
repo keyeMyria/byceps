@@ -8,6 +8,7 @@ byceps.blueprints.user_avatar.views
 
 from flask import abort, g, request
 
+from ...services.image import service as image_service
 from ...services.user_avatar import service as avatar_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_success
@@ -36,7 +37,7 @@ def update_form(erroneous_form=None):
 
     form = erroneous_form if erroneous_form else UpdateForm()
 
-    image_type_names = avatar_service.get_image_type_names(ALLOWED_IMAGE_TYPES)
+    image_type_names = image_service.get_image_type_names(ALLOWED_IMAGE_TYPES)
 
     return {
         'form': form,
@@ -67,6 +68,8 @@ def update():
     try:
         avatar_service.update_avatar_image(user, image.stream,
                                            allowed_types=ALLOWED_IMAGE_TYPES)
+    except avatar_service.ImageTypeProhibited as e:
+        abort(400, str(e))
     except FileExistsError:
         abort(409, 'File already exists, not overwriting.')
 
