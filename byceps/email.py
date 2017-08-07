@@ -8,6 +8,8 @@ Sending e-mail.
 :License: Modified BSD, see LICENSE for details.
 """
 
+from typing import List, Optional
+
 from flask_mail import Mail
 
 
@@ -18,5 +20,13 @@ def init_app(app):
     _mail.init_app(app)
 
 
-def send(*args, **kwargs):
-    _mail.send_message(*args, **kwargs)
+def send(recipients: List[str], subject: str, body: str, *,
+         sender: Optional[str]=None) -> None:
+    message = {
+        'recipients': recipients,
+        'subject': subject,
+        'body': body,
+        'sender': sender,
+    }
+
+    _mail.send_message(**message)
