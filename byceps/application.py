@@ -8,7 +8,7 @@ byceps.application
 
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, redirect
 import jinja2
 
 from .blueprints.snippet.init import add_routes_for_snippets
@@ -66,6 +66,7 @@ def _get_blueprints(app):
     current_mode = config.get_site_mode(app)
 
     always = True
+    debug = app.debug
     site_mode_admin = current_mode.is_admin()
     site_mode_public = current_mode.is_public()
 
@@ -98,6 +99,7 @@ def _get_blueprints(app):
         ('shop_order_admin',    '/admin/shop/orders',   site_mode_admin ),
         ('snippet',             '/snippets',            site_mode_public),
         ('snippet_admin',       '/admin/snippets',      site_mode_admin ),
+        ('style_guide',         '/style_guide',         debug           ),
         ('terms',               '/terms',               site_mode_public),
         ('terms_admin',         '/admin/terms',         site_mode_admin ),
         ('ticketing',           '/tickets',             site_mode_public),
@@ -157,6 +159,13 @@ def _set_url_root_path(app):
     Important: Don't specify the target with a leading slash unless you
     really mean the root of the host.
     """
-    target = app.config['ROOT_REDIRECT_TARGET']
-    if target:
-        app.add_url_rule('/', endpoint='root', redirect_to=target)
+    target_url = app.config['ROOT_REDIRECT_TARGET']
+    if target_url is None:
+        return
+
+    status_code = app.config['ROOT_REDIRECT_STATUS_CODE']
+
+    def _redirect():
+        return redirect(target_url, status_code)
+
+    app.add_url_rule('/', endpoint='root', view_func=_redirect)

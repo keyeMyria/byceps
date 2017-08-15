@@ -113,37 +113,59 @@ span[title] .icon {
 
 /* notifications */
 
-.notifications > * + * {
-  margin-top: 10px;
-}
-
-div[class|=notification] {
-  background-color: #dddddd;
+.notification {
   border-radius: 3px;
-  border-style: solid;
-  border-width: 1px;
+  border: rgba(0, 0, 0, 0.25) solid 1px;
   box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25);
   padding: 0.3em 15px;
 }
-div[class|=notification] > .body :first-child {
+
+.notification:not(:last-child) {
+  margin-bottom: 1rem;
+}
+
+.notification > .block-with-icon-body :first-child {
   margin-top: 0;
   padding-top: 0;
 }
-div[class|=notification] > .body :last-child {
+
+.notification > .block-with-icon-body :last-child {
   margin-bottom: 0;
   padding-bottom: 0;
 }
-div.notification-error {
-  background-color: #ff9999;
-  border-color: #ff1a1a;
+
+
+/* tabs */
+
+.tabs {
+  border-bottom: #dddddd solid 1px;
+  display: flex;
+  margin-bottom: 2rem;
 }
-div.notification-info {
-  background-color: #99ccee;
-  border-color: #66aacc;
+
+.tabs--centered {
+  justify-content: center;
 }
-div.notification-success {
-  background-color: #88ee88;
-  border-color: #1fd81f;
+
+.tabs a,
+.tabs .current {
+  border-bottom: transparent solid 1px;
+  display: block;
+  color: #888888;
+  flex: 1 0 auto;
+  margin-bottom: -1px;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+}
+
+.tabs a:hover,
+.tabs .current {
+  border-bottom-color: #333333;
+  color: currentColor;
+}
+
+.tabs a:hover {
+  background-color: #e8e8e8;
 }
 
 
@@ -464,6 +486,23 @@ nav.pagination li.current {
 }
 
 
+/* tags */
+
+.tag {
+  background-color: orange;
+  border-radius: 3px;
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.15);
+  color: #ffffff;
+  display: inline-block;
+  font-size: 0.625rem; /* 10px / 16px */
+  font-weight: bold;
+  line-height: 1.3;
+  padding: 0 0.4em;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.15);
+  vertical-align: middle;
+}
+
+
 /* user avatars */
 
 .avatar {
@@ -546,6 +585,28 @@ table.user-badges-list td {
 }
 
 
+/* colors */
+
+.color-danger {
+  background-color: #ff9999;
+  border-color: #ff1a1a;
+}
+
+.tag.color-danger {
+  background-color: #ff1a1a;
+}
+
+.color-info {
+  background-color: #99ccee;
+  border-color: #66aacc;
+}
+
+.color-success {
+  background-color: #88ee88;
+  border-color: #1fd81f;
+}
+
+
 /* misc */
 
 img {
@@ -573,21 +634,4 @@ img {
 .monospace {
   font-family: monospace;
   font-size: 0.75rem !important; /* 12px / 16px */
-}
-
-
-/* tags */
-
-.tag {
-  background-color: orange;
-  border-radius: 3px;
-  box-shadow: 0 0 1px rgba(0, 0, 0, 0.15);
-  color: #ffffff;
-  display: inline-block;
-  font-size: 0.625rem; /* 10px / 16px */
-  font-weight: bold;
-  line-height: 1.3;
-  padding: 0 0.4em;
-  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.15);
-  vertical-align: middle;
 }
