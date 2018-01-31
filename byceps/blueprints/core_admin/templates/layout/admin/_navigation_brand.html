@@ -1,0 +1,46 @@
+{%- from 'macros/admin.html' import render_navigation %}
+{%- from 'macros/brand_admin.html' import render_brand_admin_link %}
+
+
+<section class="sidebar-section">
+{%- if brand %}
+  <header class="sidebar-section-header">
+    <div class="sidebar-section-category">Marke</div>
+    <div class="dropdown">
+      <button class="dropdown-toggle button button--clear button--inline">
+        <div class="sidebar-section-title">{{ brand.title }} {{ render_icon('caret-down') }}</div>
+      </button>
+      <ol>
+        {%- for brand in all_brands|sort(attribute='title') %}
+        <li>{{ render_brand_admin_link(brand) }}</li>
+        {%- endfor %}
+      </ol>
+    </div>
+  </header>
+  {%- set navigation = Navigation('Marke')
+      .add_item(url_for('admin_dashboard.view_brand', brand_id=brand.id), 'Dashboard', id='admin_dashboard_brand', required_permission=AdminDashboardPermission.view_brand, icon='dashboard')
+      .add_item(url_for('party_admin.index_for_brand', brand_id=brand.id), 'Partys', id='party_admin', required_permission=PartyPermission.list, icon='date')
+      .add_item(url_for('orga_admin.persons_for_brand', brand_id=brand.id), 'Organisatoren', id='orga_admin', required_permission=OrgaDetailPermission.view, icon='users')
+      .add_item(url_for('news_admin.index_for_brand', brand_id=brand.id), 'News', id='news_admin', required_permission=NewsItemPermission.list, icon='news')
+      .add_item(url_for('newsletter_admin.view_subscriptions', brand_id=brand.id), 'Newsletter', id='newsletter_admin', required_permission=NewsletterPermission.view_subscriptions, icon='email')
+      .add_item(url_for('terms_admin.index_for_brand', brand_id=brand.id), 'AGB', id='terms_admin', required_permission=TermsPermission.list, icon='legal')
+      .add_item(url_for('board_admin.index_for_brand', brand_id=brand.id), 'Foren', id='board_admin', required_permission=BoardCategoryPermission.list, icon='board')
+  -%}
+{{ render_navigation(navigation, current_page) }}
+{%- else %}
+  <header class="sidebar-section-header">
+    <div class="sidebar-section-title">Marken</div>
+  </header>
+  <nav class="main">
+    {%- if all_brands %}
+    <ol>
+      {%- for brand in all_brands|sort(attribute='title') %}
+      <li><a href="{{ url_for('admin_dashboard.view_brand', brand_id=brand.id) }}" class="nav-item"><span class="nav-item-label">{{ brand.title }}</span></a></li>
+      {%- endfor %}
+    </ol>
+    {%- else %}
+    <p>{{ 'keine'|dim }}</p>
+    {%- endif %}
+  </nav>
+{%- endif %}
+</section>

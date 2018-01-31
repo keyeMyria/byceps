@@ -2,7 +2,7 @@
 byceps.services.country.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -21,7 +21,8 @@ def get_countries() -> List[Country]:
     """Load countries from JSON file."""
     reader = codecs.getreader('utf-8')
 
-    with current_app.open_resource('resources/countries.json') as f:
+    path = 'services/country/resources/countries.json'
+    with current_app.open_resource(path) as f:
         records = json.load(reader(f))
 
     return [Country(**record) for record in records]

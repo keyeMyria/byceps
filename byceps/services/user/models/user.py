@@ -2,21 +2,21 @@
 byceps.services.user.models.user
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from collections import namedtuple
 from datetime import datetime
 from enum import Enum
-from typing import Set
+from typing import Optional, Set
 from uuid import UUID
 
 from flask import g
 from sqlalchemy.ext.associationproxy import association_proxy
+from werkzeug.utils import cached_property
 
 from ....database import db, generate_uuid
-from ....typing import PartyID
 from ....util.instances import ReprBuilder
 
 from ...user_avatar.models import AvatarSelection
@@ -56,9 +56,6 @@ class AnonymousUser:
     def is_orga(self) -> bool:
         return False
 
-    def is_orga_for_party(self, party_id: PartyID) -> bool:
-        return False
-
     def __eq__(self, other) -> bool:
         return self.id == other.id
 
@@ -76,6 +73,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     screen_name = db.Column(db.Unicode(40), unique=True, nullable=False)
     email_address = db.Column(db.Unicode(80), unique=True, nullable=False)
+    email_address_verified = db.Column(db.Boolean, default=False, nullable=False)
     enabled = db.Column(db.Boolean, default=False, nullable=False)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
     legacy_id = db.Column(db.Integer)
@@ -97,24 +95,25 @@ class User(db.Model):
         return self.enabled
 
     @property
-    def avatar_url(self):
+    def avatar_url(self) -> Optional[str]:
         avatar = self.avatar
         return avatar.url if (avatar is not None) else None
 
     def has_permission(self, permission: Enum) -> bool:
         return permission in self.permissions
 
-    def has_any_permission(self, *permissions: Set[Enum]) -> bool:
+    def has_any_permission(self, *permissions: Enum) -> bool:
         return any(map(self.has_permission, permissions))
 
-    @property
+    @cached_property
     def is_orga(self) -> bool:
-        party = getattr(g, 'party', None)
-        return (party is not None) and self.is_orga_for_party(party.id)
+        party_id = getattr(g, 'party_id', None)
 
-    def is_orga_for_party(self, party_id: PartyID) -> bool:
-        party_ids = {ms.orga_team.party_id for ms in self.orga_team_memberships}
-        return party_id in party_ids
+        if party_id is None:
+            return False
+
+        from ...orga_team import service as orga_team_service
+        return orga_team_service.is_orga_for_party(self.id, party_id)
 
     def __eq__(self, other) -> bool:
         return (other is not None) and (self.id == other.id)

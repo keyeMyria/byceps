@@ -2,7 +2,7 @@
 byceps.services.news.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -13,9 +13,10 @@ from flask_sqlalchemy import Pagination
 from ...database import db
 from ...typing import BrandID, UserID
 
-from ..brand.models import Brand
+from ..brand.models.brand import Brand
 
-from .models import CurrentVersionAssociation, Item, ItemID, ItemVersion
+from .models import CurrentVersionAssociation, Item, ItemID, ItemVersion, \
+    ItemVersionID
 
 
 def create_item(brand_id: BrandID, slug: str, creator_id: UserID, title: str,
@@ -76,14 +77,25 @@ def find_item_by_slug(brand_id: BrandID, slug: str) -> Optional[Item]:
         .first()
 
 
-def get_items_paginated(brand_id: BrandID, page: int, items_per_page: int
+def get_items_paginated(brand_id: BrandID, page: int, items_per_page: int,
+                        published_only: bool=False
                        ) -> Pagination:
     """Return the news items to show on the specified page."""
-    return Item.query \
+    query = Item.query \
         .for_brand_id(brand_id) \
-        .with_current_version() \
+        .with_current_version()
+
+    if published_only:
+        query = query.published()
+
+    return query \
         .order_by(Item.published_at.desc()) \
         .paginate(page, items_per_page)
+
+
+def find_item_version(version_id: ItemVersionID) -> ItemVersion:
+    """Return the item version with that ID, or `None` if not found."""
+    return ItemVersion.query.get(version_id)
 
 
 def count_items_for_brand(brand_id: BrandID) -> int:

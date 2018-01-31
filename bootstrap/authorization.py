@@ -2,13 +2,13 @@
 bootstrap.authorization
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from byceps.blueprints.authorization_admin.authorization import RolePermission
-from byceps.blueprints.board.authorization import BoardPostingPermission, \
-    BoardTopicPermission
+from byceps.blueprints.board.authorization import BoardPermission, \
+    BoardPostingPermission, BoardTopicPermission
 from byceps.blueprints.orga_team_admin.authorization import OrgaTeamPermission
 from byceps.blueprints.party_admin.authorization import PartyPermission
 from byceps.blueprints.snippet_admin.authorization import \
@@ -40,16 +40,14 @@ def create_roles_and_permissions():
         'board_orga',
         'versteckte Themen und Beiträge im Forum lesen',
         [
-            (BoardPostingPermission.view_hidden, 'versteckte Beiträge im Forum anzeigen'),
-            (BoardTopicPermission.view_hidden, 'versteckte Themen im Forum anzeigen'),
+            (BoardPermission.view_hidden, 'versteckte Themen und Beiträge im Forum anzeigen'),
         ])
 
     create_role_with_permissions(
         'board_moderator',
         'Forum moderieren',
         [
-            (BoardPostingPermission.hide, 'Beiträge im Forum verstecken'),
-            (BoardTopicPermission.hide, 'Themen im Forum verstecken'),
+            (BoardPermission.hide, 'Themen und Beiträge im Forum verstecken'),
             (BoardTopicPermission.lock, 'Themen im Forum schließen'),
             (BoardTopicPermission.pin, 'Themen im Forum anpinnen'),
         ])

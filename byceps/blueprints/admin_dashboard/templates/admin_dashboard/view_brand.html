@@ -12,24 +12,24 @@
 
 {% block body %}
 
-  <div class="grid">
+  <div class="grid dashboard">
+    {%- call render_cell() %}
+{%- include 'admin_dashboard/_active_parties.html' %}
+    {%- endcall %}
     {{ render_bigstats_cell(party_count, 'Partys', href=url_for('party_admin.index_for_brand', brand_id=brand.id), icon_name='date') }}
     {{ render_bigstats_cell(orga_count, 'Organisatoren', href=url_for('orga_admin.persons_for_brand', brand_id=brand.id), icon_name='users') }}
     {{ render_bigstats_cell(news_item_count, 'Newsposts veröffentlicht', href=url_for('news_admin.index_for_brand', brand_id=brand.id), icon_name='news') }}
-    {{ render_bigstats_cell(newsletter_subscriber_count, 'Newsletter-Abonnenten', href=url_for('newsletter_admin.view_subscriptions', brand_id=brand.id), icon_name='email', color='#008800') }}
+    {{ render_bigstats_cell('{:n}'.format(newsletter_subscriber_count), 'Newsletter-Abonnenten', href=url_for('newsletter_admin.view_subscriptions', brand_id=brand.id), icon_name='email', color='#008800') }}
     {%- call render_cell('legal') %}
-      <span class="hyphenate">Stand der aktuellen AGB:</span>
+      <h2 class="hyphenate">Stand aktuelle AGB</h2>
       <p class="centered">
           {%- if current_terms_version -%}
           <strong style="font-size: 2rem;">{{ render_date(current_terms_version.created_at) }}</strong>
           {%- else -%}
-          <strong style="color: #cc0000; font-size: 1.2rem;">Es sind keine AGB hinterlegt bzw. als aktuell festgelegt!</strong>
+          <strong style="color: #cc0000;">keine AGB hinterlegt bzw. als aktuell festgelegt</strong>
           {%- endif -%}
       </p>
     {%- endcall %}
-    {{ render_bigstats_cell(board_category_count, 'Kategorien im Forum', href=url_for('board_admin.index_for_brand', brand_id=brand.id), icon_name='board') }}
-    {{ render_bigstats_cell('{:n}'.format(board_topic_count), 'Themen im Forum', icon_name='board') }}
-    {{ render_bigstats_cell('{:n}'.format(board_posting_count), 'Beiträge im Forum', icon_name='board') }}
   </div>
 
 {%- endblock %}

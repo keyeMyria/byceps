@@ -1,5 +1,5 @@
 """
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -15,7 +15,7 @@ def test_without_any_items():
 
     actual = order.calculate_total_price()
 
-    assertDecimalEqual(actual, Decimal('0.00'))
+    assert_decimal_equal(actual, Decimal('0.00'))
 
 
 def test_with_single_item():
@@ -25,7 +25,7 @@ def test_with_single_item():
 
     actual = order.calculate_total_price()
 
-    assertDecimalEqual(actual, Decimal('49.95'))
+    assert_decimal_equal(actual, Decimal('49.95'))
 
 
 def test_with_multiple_items():
@@ -37,7 +37,7 @@ def test_with_multiple_items():
 
     actual = order.calculate_total_price()
 
-    assertDecimalEqual(actual, Decimal('206.17'))
+    assert_decimal_equal(actual, Decimal('206.17'))
 
 
 # helpers
@@ -57,6 +57,6 @@ def create_order_with_items(price_quantity_pairs):
     return order
 
 
-def assertDecimalEqual(actual, expected):
+def assert_decimal_equal(actual, expected):
     assert isinstance(actual, Decimal)
     assert actual == expected

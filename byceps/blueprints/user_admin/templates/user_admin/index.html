@@ -3,31 +3,12 @@
 {% from 'macros/icons.html' import render_icon %}
 {% from 'macros/pagination.html' import render_pagination_nav %}
 {% from 'macros/stats.html' import render_bigstats_item %}
-{% from 'macros/user_admin.html' import render_user_avatar_16_and_link, render_user_state_filter %}
+{% from 'macros/user_admin.html' import render_user_avatar_16_and_link, render_user_flag_deleted, render_user_flag_disabled, render_user_state_filter %}
 {% set current_page = 'user_admin' %}
 {% set title = 'Benutzer' %}
 
 {% block head %}
     <style>
-      form.search-user {
-        white-space: nowrap;
-      }
-
-      form.search-user input {
-        opacity: 0.5;
-      }
-      form.search-user input:focus,
-      form.search-user input:hover {
-        opacity: 1;
-      }
-
-      form.search-user input,
-      form.search-user .button {
-        font-size: 0.875rem; /* 14px / 16px */
-        padding-bottom: 0.2rem;
-        padding-top: 0.2rem;
-      }
-
       .tag.user-state-enabled {
           background-color: #11aa22;
       }
@@ -41,23 +22,23 @@
 
   <h1>{{ title }}</h1>
 
-  <div class="row row--space-around bigstats">
+  <div class="row row--space-around row--wrap bigstats">
     <div class="column-auto">
-      {{ render_bigstats_item(total_enabled, 'aktiviert', icon_name='enabled', color='#008800') }}
+      {{ render_bigstats_item('{:n}'.format(total_enabled), 'aktiviert', icon_name='enabled', color='#008800') }}
     </div>
     <div class="column-auto">
-      {{ render_bigstats_item(total_disabled, 'nicht aktiviert', icon_name='disabled', color='#cc0000') }}
+      {{ render_bigstats_item('{:n}'.format(total_disabled), 'nicht aktiviert', icon_name='disabled', color='#cc0000') }}
     </div>
     <div class="column-auto">
-      {{ render_bigstats_item(total_overall, '&sum; gesamt'|safe) }}
+      {{ render_bigstats_item('{:n}'.format(total_overall), '&sum; gesamt'|safe) }}
     </div>
   </div>
 
-  <div class="row row--space-between filters">
+  <div class="row row--space-between row--wrap filters">
     <div class="column-auto">
 
-      <form action="{{ url_for('.index') }}" class="search-user">
-        <input type="search" name="search_term" placeholder="Benutzer-, Vor-, Nachname" {%- if search_term %} value="{{ search_term }}"{% endif %}>
+      <form action="{{ url_for('.index') }}" class="single-row unobtrusive">
+        <input type="search" name="search_term" placeholder="Benutzer-, Vor-, Nachname, E-Mail-Adresse" title="Benutzer-, Vor-, Nachname, E-Mail-Adresse"{%- if search_term %} value="{{ search_term }}"{% endif %}>
         <button type="submit" class="button" title="Suchen">{{ render_icon('search') }}</button>
         <a href="{{ url_for('.index') }}" class="button{% if not search_term %} dimmed{% endif %}" title="Einschränkung auf Suchbegriff aufheben">{{ render_icon('remove') }}</a>
       </form>
@@ -68,7 +49,7 @@
       <div class="filter">
         <span>{{ render_icon('filter') }} Einschränkung:</span>
         <div class="dropdown left">
-          <button class="dropdown-toggle button button--seamless">{{ render_user_state_filter(user_state_filter) }} {{ render_icon('caret-down') }}</button>
+          <button class="dropdown-toggle button button--clear">{{ render_user_state_filter(user_state_filter) }} {{ render_icon('caret-down') }}</button>
           <ol>
             <li><a href="{{ url_for('.index') }}">{{ render_user_state_filter(UserStateFilter.none) }}</a></li>
             <li><a href="{{ url_for('.index', only='enabled') }}">{{ render_user_state_filter(UserStateFilter.enabled) }}</a></li>
@@ -80,30 +61,9 @@
     </div>
   </div>
 
-  <table class="index wide">
-    <thead>
-      <tr>
-        <th>Benutzername</th>
-        <th>Voller Name</th>
-        <th>Erstellt</th>
-        <th>aktiv</th>
-      </tr>
-    </thead>
-    <tbody>
-      {%- for user in users.items %}
-      <tr{% if user.deleted %} class="dimmed"{% endif %}>
-        <td>
-          {%- if user.deleted %}{{ render_icon('delete', title='gelöscht') }} {% endif -%}
-          {{- render_user_avatar_16_and_link(user) -}}
-        </td>
-        <td>{{ user.detail.full_name|fallback }}</td>
-        <td>{{ render_datetime(user.created_at) }}</td>
-        <td>{{ render_icon('enabled' if user.enabled else 'disabled') }}</td>
-      </tr>
-      {%- endfor %}
-      <tr>
-    </tbody>
-  </table>
+  {%- with users = users.items %}
+    {%- include 'user_admin/_user_list.html' %}
+  {%- endwith %}
 
 {{ render_pagination_nav(users, '.index', {
     'only': only if only else None,

@@ -2,31 +2,32 @@
 byceps.services.board.topic_service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Set
 
 from flask_sqlalchemy import Pagination
 
 from ...database import db
-from ...typing import BrandID, UserID
+from ...typing import UserID
 
 from ..user.models.user import User
 
 from .aggregation_service import aggregate_category, aggregate_topic
+from .models.board import BoardID
 from .models.category import Category, CategoryID
 from .models.posting import InitialTopicPostingAssociation, Posting
 from .models.topic import Topic, TopicID
 from .posting_service import update_posting
 
 
-def count_topics_for_brand(brand_id: BrandID) -> int:
-    """Return the number of topics for that brand."""
+def count_topics_for_board(board_id: BoardID) -> int:
+    """Return the number of topics for that board."""
     return Topic.query \
-        .join(Category).filter(Category.brand_id == brand_id) \
+        .join(Category).filter(Category.board_id == board_id) \
         .count()
 
 
@@ -47,6 +48,16 @@ def find_topic_visible_for_user(topic_id: TopicID, user: User
         .only_visible_for_user(user) \
         .filter_by(id=topic_id) \
         .first()
+
+
+def get_all_topic_ids_in_category(category_id: CategoryID) -> Set[TopicID]:
+    """Return the IDs of all topics in the category."""
+    rows = db.session \
+        .query(Topic.id) \
+        .filter(Topic.category_id == category_id) \
+        .all()
+
+    return {row[0] for row in rows}
 
 
 def paginate_topics(category_id: CategoryID, user: User, page: int,
@@ -70,10 +81,10 @@ def paginate_topics(category_id: CategoryID, user: User, page: int,
         .paginate(page, topics_per_page)
 
 
-def create_topic(category: Category, creator_id: UserID, title: str, body: str
-                ) -> Topic:
+def create_topic(category_id: CategoryID, creator_id: UserID, title: str,
+                 body: str) -> Topic:
     """Create a topic with an initial posting in that category."""
-    topic = Topic(category.id, creator_id, title)
+    topic = Topic(category_id, creator_id, title)
     posting = Posting(topic, creator_id, body)
     initial_topic_posting_association = InitialTopicPostingAssociation(topic,
                                                                        posting)

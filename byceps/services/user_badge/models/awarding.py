@@ -2,7 +2,7 @@
 byceps.services.user_badge.models.awarding
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -16,7 +16,7 @@ from .badge import BadgeID
 
 
 BadgeAwardingTuple = namedtuple('BadgeAwardingTuple',
-    'badge_id, user_id, awarded_at')
+    'id, badge_id, user_id, awarded_at')
 
 
 QuantifiedBadgeAwardingTuple = namedtuple('BadgeAwardingTuple',
@@ -39,6 +39,7 @@ class BadgeAwarding(db.Model):
     def to_tuple(self) -> BadgeAwardingTuple:
         """Return a tuple representation of this entity."""
         return BadgeAwardingTuple(
+            self.id,
             self.badge_id,
             self.user_id,
             self.awarded_at

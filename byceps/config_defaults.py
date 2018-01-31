@@ -4,7 +4,7 @@ byceps.config_defaults
 
 Default configuration values
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -54,3 +54,6 @@ SHOP_ORDER_EXPORT_TIMEZONE = timezone('Europe/Berlin')
 
 # ticketing
 TICKET_MANAGEMENT_ENABLED = True
+
+# seating
+SEAT_MANAGEMENT_ENABLED = True

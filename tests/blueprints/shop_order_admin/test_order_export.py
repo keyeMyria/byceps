@@ -1,5 +1,5 @@
 """
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -9,11 +9,8 @@ from decimal import Decimal
 
 from freezegun import freeze_time
 
-from testfixtures.brand import create_brand
-from testfixtures.party import create_party
 from testfixtures.shop_article import create_article
 from testfixtures.shop_order import create_order, create_order_item
-from testfixtures.user import create_user_with_detail
 
 from tests.base import AbstractAppTestCase, CONFIG_FILENAME_TEST_ADMIN
 from tests.helpers import assign_permissions_to_user
@@ -24,23 +21,17 @@ class ExportTestCase(AbstractAppTestCase):
     def setUp(self):
         super().setUp(config_filename=CONFIG_FILENAME_TEST_ADMIN)
 
-        self.setup_admin()
+        self.admin = self.create_admin()
+
+        self.create_brand_and_party()
+
         self.create_articles()
         self.create_order()
 
     def create_brand_and_party(self):
-        self.brand = create_brand(
-            id='lanresort',
-            title='LANresort')
-        self.db.session.add(self.brand)
-
-        self.party = create_party(
-            id='lanresort-2015',
-            brand=self.brand,
-            title='LANresort 2015')
-        self.db.session.add(self.party)
-
-        self.db.session.commit()
+        self.brand = self.create_brand('lanresort', 'LANresort')
+        self.party = self.create_party(self.brand.id, 'lanresort-2015',
+                                       'LANresort 2015')
 
     @freeze_time('2015-04-15 09:54:18')
     def test_serialize_order(self):
@@ -52,16 +43,23 @@ class ExportTestCase(AbstractAppTestCase):
         with self.client(user=self.admin) as client:
             response = client.get(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content_type, 'application/xml; charset=iso-8859-1')
+        assert response.status_code == 200
+        assert response.content_type == 'application/xml; charset=iso-8859-1'
+
         body = response.get_data().decode('utf-8')
-        self.assertEqual(body, expected)
+        assert body == expected
 
     # helpers
 
-    def setup_admin(self):
+    def create_admin(self):
+        admin = self.create_user('Admin')
+
         permission_ids = {'admin.access', 'shop_order.view'}
-        assign_permissions_to_user(self.admin.id, 'admin', permission_ids)
+        assign_permissions_to_user(admin.id, 'admin', permission_ids)
+
+        self.create_session_token(admin.id)
+
+        return admin
 
     def create_articles(self):
         self.article_table = self.build_article(
@@ -92,7 +90,7 @@ class ExportTestCase(AbstractAppTestCase):
 
     def build_article(self, item_number, description, price, tax_rate):
         return create_article(
-            party=self.party,
+            party_id=self.party.id,
             item_number=item_number,
             description=description,
             price=price,
@@ -115,7 +113,8 @@ class ExportTestCase(AbstractAppTestCase):
 
     def build_orderer(self):
         email_address = 'h-w.mustermann@example.com'
-        orderer = create_user_with_detail(email_address=email_address)
+        orderer = self.create_user_with_detail('Besteller',
+                                               email_address=email_address)
         orderer.detail.last_name = 'Mustermann'
         orderer.detail.first_names = 'Hans-Werner'
         orderer.detail.country = 'Deutschland'

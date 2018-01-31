@@ -2,7 +2,7 @@
 byceps.services.board.models.posting
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -12,7 +12,8 @@ from uuid import UUID
 
 from flask import url_for
 
-from ....blueprints.board.authorization import BoardPostingPermission
+from ....blueprints.board.authorization import BoardPermission, \
+    BoardPostingPermission
 from ....database import BaseQuery, db, generate_uuid
 from ....typing import UserID
 from ....util.instances import ReprBuilder
@@ -32,7 +33,7 @@ class PostingQuery(BaseQuery):
 
     def only_visible_for_user(self, user: User) -> BaseQuery:
         """Only return postings the user may see."""
-        if not user.has_permission(BoardPostingPermission.view_hidden):
+        if not user.has_permission(BoardPermission.view_hidden):
             return self.without_hidden()
 
         return self
@@ -78,12 +79,13 @@ class Posting(db.Model):
         return self == topic.initial_posting
 
     def may_be_updated_by_user(self, user: User) -> bool:
-        return not self.topic.locked and (
+        return (
             (
-                user == self.creator and \
-                user.has_permission(BoardPostingPermission.update)
-            ) or \
-            user.has_permission(BoardPostingPermission.update_of_others)
+                not self.topic.locked
+                    and user == self.creator
+                    and user.has_permission(BoardPostingPermission.update)
+            )
+            or user.has_permission(BoardPermission.update_of_others)
         )
 
     def is_unseen(self, user: User, last_viewed_at: datetime) -> bool:

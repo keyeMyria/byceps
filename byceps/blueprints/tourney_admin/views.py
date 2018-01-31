@@ -2,7 +2,7 @@
 byceps.blueprints.tourney_admin.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -12,7 +12,7 @@ from ...services.party import service as party_service
 from ...services.tourney import service as tourney_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_success
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import redirect_to, respond_no_content
 
 from ..authorization.decorators import permission_required
@@ -70,7 +70,7 @@ def category_create(party_id):
 
     title = form.title.data.strip()
 
-    category = tourney_service.create_category(party, title)
+    category = tourney_service.create_category(party.id, title)
 
     flash_success('Die Kategorie "{}" wurde angelegt.', category.title)
     return redirect_to('.category_index_for_party', party_id=category.party.id)

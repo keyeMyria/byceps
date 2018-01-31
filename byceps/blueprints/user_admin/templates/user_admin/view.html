@@ -1,224 +1,113 @@
 {% extends 'layouts/user_admin.html' %}
 {% from 'macros/admin.html' import render_extra_in_heading %}
 {% from 'macros/datetime.html' import render_date, render_datetime %}
-{% from 'macros/icons.html' import render_icon %}
+{% from 'macros/misc.html' import render_tag %}
 {% from 'macros/shop_order_admin.html' import render_order_payment_state %}
-{% from 'macros/user_admin.html' import render_user_deleted_flag %}
-{% from 'macros/user_avatar.html' import render_user_avatar_128 %}
-{% from 'macros/user_badge.html' import render_user_badges_list %}
+{% from 'macros/user_badge_admin.html' import render_user_badges_list %}
 {% set current_tab = 'profile' %}
 {% set current_tab_user_id = user.id %}
 {% set title = 'Benutzer - %s'|format(user.screen_name) %}
 
 {% block head %}
 <style>
-  ol.toc li {
-    display: inline;
-    font-size: 0.75rem; /* 12px / 16px */
-  }
-  ol.toc li:not(:last-child)::after {
-    content: " \00b7";
-    opacity: 0.5;
-  }
+.radio-tab-component {
+  margin-top: 2rem;
+}
+
+.radio-tab-component > input[type='radio'] {
+  position: absolute;
+  left: -10000px;
+}
+
+#tabs-rb-account:checked ~ .radio-tabs #tabs-tab-account,
+#tabs-rb-personal:checked ~ .radio-tabs #tabs-tab-personal,
+#tabs-rb-orders:checked ~ .radio-tabs #tabs-tab-orders,
+#tabs-rb-tickets:checked ~ .radio-tabs #tabs-tab-tickets,
+#tabs-rb-badges:checked ~ .radio-tabs #tabs-tab-badges {
+  /* copied from `.tabs-tab--current` */
+  border-color: #333333;
+  color: currentColor;
+  cursor: default;
+}
+
+.radio-panel {
+  display: none;
+}
+
+#tabs-rb-account:checked ~ .radio-panels #tabs-panel-account,
+#tabs-rb-personal:checked ~ .radio-panels #tabs-panel-personal,
+#tabs-rb-orders:checked ~ .radio-panels #tabs-panel-orders,
+#tabs-rb-tickets:checked ~ .radio-panels #tabs-panel-tickets,
+#tabs-rb-badges:checked ~ .radio-panels #tabs-panel-badges {
+  display: block;
+}
 </style>
 {% endblock %}
 
 {% block body %}
 
-  <nav class="breadcrumbs">
-    <ol>
-      <li><a href="{{ url_for('.index') }}">Benutzer</a></li>
+{%- include 'user_admin/_view_head.html' %}
+
+  <div class="radio-tab-component">
+
+    <input type="radio" name="user-sections-state" id="tabs-rb-account" checked>
+    <input type="radio" name="user-sections-state" id="tabs-rb-personal">
+    <input type="radio" name="user-sections-state" id="tabs-rb-orders">
+    <input type="radio" name="user-sections-state" id="tabs-rb-tickets">
+    <input type="radio" name="user-sections-state" id="tabs-rb-badges">
+
+    <ol class="radio-tabs tabs">
+      <li><label class="radio-tab tabs-tab" for="tabs-rb-account" id="tabs-tab-account">Benutzerkonto</label></li>
+      <li><label class="radio-tab tabs-tab" for="tabs-rb-personal" id="tabs-tab-personal">Persönliche Daten</label></li>
+      <li><label class="radio-tab tabs-tab" for="tabs-rb-orders" id="tabs-tab-orders">Bestellungen</label></li>
+      <li><label class="radio-tab tabs-tab" for="tabs-rb-tickets" id="tabs-tab-tickets">Tickets</label></li>
+      <li><label class="radio-tab tabs-tab" for="tabs-rb-badges" id="tabs-tab-badges">Abzeichen</label></li>
     </ol>
-  </nav>
-  <h1>
-    {{- render_icon('user') }} {{ user.screen_name -}}
-    {%- if user.deleted %} {{ render_user_deleted_flag() }}{% endif -%}
-  </h1>
 
-  <nav>
-    <ol class="toc">
-      <li><a href="#account">Benutzerkonto</a></li>
-      <li><a href="#personal">Persönliche Daten</a></li>
-      <li><a href="#orders">Bestellungen</a></li>
-      <li><a href="#tickets">Tickets</a></li>
-      <li><a href="#badges">Abzeichen</a></li>
-    </ol>
-  </nav>
+    <div class="radio-panels">
 
-  <h2 id="account">Benutzerkonto</h2>
-  <div style="float: right; margin-left: 40px;">
-    {{ render_user_avatar_128(user) }}
-  </div>
-  <table class="index">
-    <tr>
-      <th>ID</th>
-      <td>
-        {{ user.id }}
-        <input id="user-id-field" value="{{ user.id }}" style="position: fixed; top: -1000px;" readonly>
-        <button id="user-id-copy-trigger" class="button button--icon-only" title="In die Zwischenablage kopieren">{{ render_icon('clipboard') }}</button>
-      </td>
-    </tr>
-    <tr>
-      <th>Benutzername</th>
-      <td>{{ user.screen_name }}</td>
-    </tr>
-    <tr>
-      <th>Erstellt</th>
-      <td>{{ render_datetime(user.created_at) }}</td>
-    </tr>
-    <tr>
-      <th>E-Mail-Adresse</th>
-      <td><a href="mailto:{{ user.email_address }}">{{ user.email_address }}</a></td>
-    </tr>
-    <tr>
-      <th>Aktiviert</th>
-      <td>{{ render_icon('enabled' if user.enabled else 'disabled') }}</td>
-    </tr>
-    <tr>
-      <th>Avatar</th>
-      <td>{{ render_icon('enabled' if user.avatar else 'disabled') }}</td>
-    </tr>
-    <tr>
-      <th>Legacy-ID</th>
-      <td>{{ user.legacy_id|fallback }}</td>
-    </tr>
-    <tr>
-      <th>Orga-Teams</th>
-      <td>
-        {%- if user.orga_team_memberships %}
-        <ol>
-          {%- for membership in user.orga_team_memberships|sort(attribute='orga_team.party.starts_at', reverse=True) %}
-          <li>
-            {{- membership.orga_team.party.title }} – {{ membership.orga_team.title }}
-            {%- if membership.duties %} ({{ membership.duties }}){% endif -%}
-          </li>
-          {%- endfor %}
-        </ol>
-        {%- else %}
-          {{- 'keine'|dim -}}
-        {%- endif %}
-      </td>
-    </tr>
-  </table>
+      <div class="radio-panel" id="tabs-panel-account">
+        <h2>Benutzerkonto</h2>
+{%- include 'user_admin/_view_account.html' %}
+      </div>
 
-  <h2 id="personal">Persönliche Daten</h2>
-  <table class="index">
-    <tr>
-      <th>Voller Name</th>
-      <td>{{ user.detail.full_name|fallback }}</td>
-    </tr>
-    <tr>
-      <th>Geburtsdatum</th>
-      <td>
-        {%- if user.detail.date_of_birth -%}
-          {{ render_date(user.detail.date_of_birth, smart=False) }}
-        {%- else -%}
-          {{ 'nicht angegeben'|dim }}
-        {%- endif -%}
-      </td>
-    </tr>
-    <tr>
-      <th>Anschrift</th>
-      <td>
-        {{- user.detail.street|fallback }}<br>
-        {%- if user.detail.zip_code %}{{ user.detail.zip_code }}{% endif %}
-        {{ user.detail.city|fallback -}}
-        <br>
-        {{- user.detail.country|fallback -}}
-      </td>
-    </tr>
-    <tr>
-      <th>Telefonnummer</th>
-      <td>{{ user.detail.phone_number|fallback }}</td>
-    </tr>
-  </table>
+      <div class="radio-panel" id="tabs-panel-personal">
+        <h2>Persönliche Daten</h2>
+{%- include 'user_admin/_view_personal.html' %}
+      </div>
 
-  <h2 id="orders">Bestellungen {{ render_extra_in_heading(orders|length) }}</h2>
-  {%- if orders %}
-  <table class="index">
-    <thead>
-      <tr>
-        <th>Zeitpunkt</th>
-        <th>Party</th>
-        <th>Bestellnr.</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {%- for order in orders %}
-      <tr>
-        <td>{{ render_datetime(order.created_at) }}</td>
-        <td>{{ order_parties_by_id[order.party_id].title }}</td>
-        <td><a href="{{ url_for('shop_order_admin.view', order_id=order.id) }}">{{ order.order_number }}</a></td>
-        <td class="centered">{{ render_order_payment_state(order.payment_state) }}</td>
-      </tr>
-      {%- endfor %}
-      <tr>
-    </tbody>
-  </table>
-  {%- else %}
-  {{ 'keine'|dim }}
-  {%- endif %}
+      <div class="radio-panel" id="tabs-panel-orders">
+        <h2>Bestellungen {{ render_extra_in_heading(orders|length) }}</h2>
+{%- include 'user_admin/_view_orders.html' %}
+      </div>
 
-  <h2 id="tickets">Tickets</h2>
-  {%- if parties_and_tickets %}
-  <table class="index wide">
-    <thead>
-      <tr>
-        <th>Party</th>
-        <th>ID</th>
-        <th>Kategorie</th>
-        <th>Sitzplatz</th>
-        <th colspan="3"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {%- for party, tickets in parties_and_tickets %}
-        {%- for ticket in tickets|sort(attribute='created_at') %}
-      <tr>
-        {%- if loop.first %}
-        <td rowspan="{{ tickets|length }}"><strong>{{ party.title }}</strong></td>
-        {%- endif %}
-        <td>
-          {%- if ticket.used_by_id == user.id %}<strong>{% endif -%}
-              <a href="{{ url_for('ticketing_admin.view', ticket_id=ticket.id) }}" title="{{ ticket.id }}">{{ ticket.id|string|truncate(6, killwords=True, end='…') }}</a>
-          {%- if ticket.used_by_id == user.id %}</strong>{% endif -%}
-        </td>
-        <td>{{ ticket.category.title }}</td>
-        <td>
-          {%- with seat = ticket.occupied_seat %}
-            {%- if seat %}
-          {{ seat.area.title }}<br>
-          <span title="{{ seat.id }}">{{ seat.label|fallback(seat.id|string|truncate(6, killwords=True, end='…')) }}</span>
-            {%- endif %}
-          {%- endwith %}
-        </td>
-        <td>{% if ticket.owned_by_id == user.id %}{{ render_icon('payment', title='gekauft') }}{% endif %}</td>
-        <td>{% if ticket.is_seat_managed_by(user.id) %}{{ render_icon('seating-area', title='verwaltet Sitzplatz') }}{% endif %}</td>
-        <td>{% if ticket.is_user_managed_by(user.id) %}{{ render_icon('user', title='verwaltet Nutzer/in') }}{% endif %}</td>
-      </tr>
-        {%- endfor %}
-      {%- endfor %}
-    </tbody>
-  </table>
-  {%- else %}
-  {{ 'keine'|dim }}
-  {%- endif %}
+      <div class="radio-panel" id="tabs-panel-tickets">
+        <h2>Tickets</h2>
+{%- include 'user_admin/_view_tickets.html' %}
+      </div>
 
-  <h2 id="badges">Abzeichen {{ render_extra_in_heading(badges_with_awarding_quantity|length) }}</h2>
-  {%- if badges_with_awarding_quantity %}
+      <div class="radio-panel" id="tabs-panel-badges">
+        <h2>Abzeichen {{ render_extra_in_heading(badges_with_awarding_quantity|length) }}</h2>
+        {%- if badges_with_awarding_quantity %}
 {{ render_user_badges_list(badges_with_awarding_quantity) }}
-  {%- else %}
-  {{ 'keine'|dim }}
-  {%- endif %}
+        {%- else %}
+        {{ 'keine'|dim }}
+        {%- endif %}
+      </div>
+
+    </div>
+
+  </div>
 
 {%- endblock %}
 
 {% block scripts %}
 <script>
-  var field = document.querySelector('#user-id-field');
-  var trigger = document.querySelector('#user-id-copy-trigger');
+  enableCopyToClipboard('user-id-copy-trigger');
 
-  enableCopyToClipboard(field, trigger);
+  onDomReady(function() {
+    confirmed_post_on_click_then_reload('[data-action="user-enable"]', 'Benutzerkonto aktivieren?');
+    confirmed_delete_on_click_then_reload('[data-action="user-disable"]', 'Benutzerkonto deaktivieren?');
+  });
 </script>
 {% endblock %}

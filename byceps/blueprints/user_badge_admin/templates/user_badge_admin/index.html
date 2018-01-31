@@ -1,0 +1,50 @@
+{% extends 'layout/admin/base.html' %}
+{% from 'macros/admin.html' import render_extra_in_heading %}
+{% from 'macros/icons.html' import render_icon %}
+{% from 'macros/misc.html' import render_tag %}
+{% set current_page = 'user_badge_admin' %}
+{% set title = 'Abzeichen' %}
+
+{% block head %}
+  <style>
+    table.badges td {
+      vertical-align: middle;
+    }
+  </style>
+{%- endblock %}
+
+{% block body %}
+
+  <h1>Abzeichen {{ render_extra_in_heading(badges|length) }}</h1>
+
+  {%- if g.current_user.has_permission(UserBadgePermission.create) %}
+  <div class="button-row">
+    <a class="button" href="{{ url_for('.create_form') }}">{{ render_icon('add') }} Abzeichen erstellen</a>
+  </div>
+  {%- endif %}
+
+  <table class="index wide badges">
+    <thead>
+      <tr>
+        <th>Marke</th>
+        <th>Bild</th>
+        <th>Bezeichnung<br>Slug</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {%- for badge in badges|sort(attribute='label') %}
+      <tr>
+        <td>{{ badge.brand_title|fallback('alle') }}</td>
+        <td><span class="user-badge size-32"><img src="{{ badge.image_url }}"></span></td>
+        <td>
+          <a href="{{ url_for('user_badge_admin.view', badge_id=badge.id) }}">{{ badge.label }}</a><br>
+          {{ badge.slug|dim }}
+        </td>
+        <td>{{ render_tag('featured') if badge.featured else '' }}</td>
+      </tr>
+      {%- endfor %}
+    </tbody>
+  </table>
+
+{%- endblock %}

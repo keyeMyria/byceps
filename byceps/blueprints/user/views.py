@@ -2,7 +2,7 @@
 byceps.blueprints.user.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -16,13 +16,14 @@ from ...services.newsletter import service as newsletter_service
 from ...services.orga_team import service as orga_team_service
 from ...services.terms import service as terms_service
 from ...services.ticketing import attendance_service, ticket_service
-from ...services.user import service as user_service
 from ...services.user import creation_service as user_creation_service
+from ...services.user import event_service as user_event_service
+from ...services.user import service as user_service
 from ...services.user_badge import service as badge_service
 from ...services.verification_token import service as verification_token_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_notice, flash_success
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import create_empty_json_response, redirect_to
 
 from .forms import DetailsForm, RequestConfirmationEmailForm, UserCreateForm
@@ -49,10 +50,11 @@ def view(user_id):
     badges_with_awarding_quantity = badge_service.get_badges_for_user(user.id)
 
     orga_team_membership = orga_team_service.find_membership_for_party(user.id,
-        g.party.id)
+        g.party_id)
 
-    current_party_tickets = ticket_service.find_tickets_used_by_user(user.id,
-        g.party.id)
+    _current_party_tickets = ticket_service.find_tickets_used_by_user(user.id,
+        g.party_id)
+    current_party_tickets = [t for t in _current_party_tickets if not t.revoked]
 
     attended_parties = attendance_service.get_attended_parties(user.id)
     attended_parties.sort(key=attrgetter('starts_at'), reverse=True)
@@ -97,9 +99,8 @@ def view_current():
         abort(404)
 
     if get_site_mode().is_public():
-        brand_id = g.party.brand_id
-        subscribed_to_newsletter = newsletter_service.is_subscribed(user.id,
-                                                                    brand_id)
+        subscribed_to_newsletter = newsletter_service.is_subscribed(
+            user.id, g.brand_id)
     else:
         subscribed_to_newsletter = None
 
@@ -134,8 +135,7 @@ def create_form(erroneous_form=None):
         flash_error('Das Erstellen von Benutzerkonten ist deaktiviert.')
         abort(403)
 
-    brand_id = g.party.brand_id
-    terms_version = terms_service.get_current_version(brand_id)
+    terms_version = terms_service.get_current_version(g.brand_id)
 
     form = erroneous_form if erroneous_form \
         else UserCreateForm(terms_version_id=terms_version.id)
@@ -173,16 +173,14 @@ def create():
             'Diese E-Mail-Adresse ist bereits einem Benutzerkonto zugeordnet.')
         return create_form(form)
 
-    brand_id = g.party.brand_id
-
     terms_version = terms_service.find_version(terms_version_id)
-    if terms_version.brand_id != brand_id:
+    if terms_version.brand_id != g.brand_id:
         abort(400, 'Die AGB-Version gehört nicht zu dieser Veranstaltung.')
 
     try:
         user = user_creation_service.create_user(screen_name, email_address,
                                                  password, first_names,
-                                                 last_name, brand_id,
+                                                 last_name, g.brand_id,
                                                  terms_version.id,
                                                  subscribe_to_newsletter)
     except user_creation_service.UserCreationFailed:
@@ -236,7 +234,8 @@ def request_email_address_confirmation_email():
 
     verification_token = verification_token_service \
         .find_or_create_for_email_address_confirmation(user.id)
-    user_service.send_email_address_confirmation_email(user, verification_token)
+    user_service.send_email_address_confirmation_email(
+        user, verification_token, g.brand_id)
 
     flash_success(
         'Der Link zur Bestätigung der für den Benutzernamen "{}" '
@@ -257,6 +256,13 @@ def confirm_email_address(token):
     user = verification_token.user
 
     user_service.confirm_email_address(verification_token)
+
+    # Currently, the user's e-mail address cannot be changed, but that
+    # might be allowed in the future. At that point, the verification
+    # token should be extended to include the e-mail address it refers
+    # to, and that value should be persisted with user event instead.
+    data = {'email_address': user.email_address}
+    user_event_service.create_event('email-address-confirmed', user.id, data)
 
     flash_success(
         'Die E-Mail-Adresse wurde bestätigt. Das Benutzerkonto "{}" ist nun aktiviert.',

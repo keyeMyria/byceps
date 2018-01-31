@@ -2,7 +2,7 @@
 byceps.services.user.creation_service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -15,7 +15,7 @@ from ..authentication.password import service as password_service
 from ..authorization.models import RoleID
 from ..authorization import service as authorization_service
 from ..newsletter import service as newsletter_service
-from ..terms.models import VersionID as TermsVersionID
+from ..terms.models.version import VersionID as TermsVersionID
 from ..terms import service as terms_service
 from ..verification_token import service as verification_token_service
 
@@ -68,7 +68,8 @@ def create_user(screen_name: str, email_address: str, password: str,
     db.session.add(verification_token)
     db.session.commit()
 
-    user_service.send_email_address_confirmation_email(user, verification_token)
+    user_service.send_email_address_confirmation_email(
+        user, verification_token, brand_id)
 
     return user
 

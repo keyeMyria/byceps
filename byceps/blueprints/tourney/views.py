@@ -2,7 +2,7 @@
 byceps.blueprints.tourney.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -10,7 +10,7 @@ from flask import abort, g, request, url_for
 
 from ...services.tourney import service as tourney_service
 from ...util.framework.blueprint import create_blueprint
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import respond_created
 
 from . import signals

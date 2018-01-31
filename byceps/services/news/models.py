@@ -2,7 +2,7 @@
 byceps.services.news.models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -18,17 +18,23 @@ from ...typing import BrandID, UserID
 from ...util.instances import ReprBuilder
 from ...util.templating import load_template
 
-from ..brand.models import Brand
+from ..brand.models.brand import Brand
 from ..user.models.user import User
 
 
 ItemID = NewType('ItemID', UUID)
+
+ItemVersionID = NewType('ItemVersionID', UUID)
 
 
 class ItemQuery(BaseQuery):
 
     def for_brand_id(self, brand_id: BrandID) -> BaseQuery:
         return self.filter_by(brand_id=brand_id)
+
+    def published(self) -> BaseQuery:
+        """Return items that have been published."""
+        return self.filter(Item.published_at <= datetime.now())
 
     def with_current_version(self) -> BaseQuery:
         return self.options(
@@ -63,8 +69,7 @@ class Item(db.Model):
         return self.current_version.title
 
     def render_body(self) -> str:
-        template = load_template(self.current_version.body)
-        return template.render(url_for=url_for)
+        return self.current_version.render_body()
 
     @property
     def external_url(self) -> str:
@@ -126,6 +131,10 @@ class ItemVersion(db.Model):
         item it belongs to.
         """
         return self.id == self.item.current_version.id
+
+    def render_body(self) -> str:
+        template = load_template(self.body)
+        return template.render(url_for=url_for)
 
     def __repr__(self) -> str:
         return ReprBuilder(self) \

@@ -2,7 +2,7 @@
 byceps.services.terms.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -13,8 +13,8 @@ from ...typing import BrandID, UserID
 
 from ..verification_token.models import Token
 
-from .models import Consent, ConsentContext, CurrentVersionAssociation, \
-    Version, VersionID
+from .models.consent import Consent, ConsentContext
+from .models.version import CurrentVersionAssociation, Version, VersionID
 
 
 # -------------------------------------------------------------------- #

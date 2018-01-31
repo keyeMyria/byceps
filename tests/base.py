@@ -4,7 +4,7 @@ tests.base
 
 Base classes for test cases
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -17,11 +17,12 @@ from unittest.mock import patch
 from byceps.application import create_app
 from byceps.database import db
 from byceps.services.authentication.session.models import SessionToken
+from byceps.services.email.models import EmailConfig
 
 from testfixtures.authentication import create_session_token
 from testfixtures.brand import create_brand
 from testfixtures.party import create_party
-from testfixtures.user import create_user
+from testfixtures.user import create_user, create_user_with_detail
 
 from tests import mocks
 
@@ -49,32 +50,62 @@ class AbstractAppTestCase(TestCase):
         db.drop_all()
         db.create_all()
 
-        self.create_brand_and_party()
-        self.create_admin()
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
 
     def create_brand_and_party(self):
         self.brand = create_brand()
         db.session.add(self.brand)
 
-        self.party = create_party(brand=self.brand)
+        self.party = create_party(brand_id=self.brand.id)
         db.session.add(self.party)
 
         db.session.commit()
 
-    def create_admin(self):
-        self.admin = create_user('Admin')
+    def create_user(self, *args, **kwargs):
+        user = create_user(*args, **kwargs)
 
-        db.session.add(self.admin)
-        db.session.commit()
+        self.db.session.add(user)
+        self.db.session.commit()
 
-        session_token = create_session_token(self.admin.id)
+        return user
+
+    def create_user_with_detail(self, *args, **kwargs):
+        user = create_user_with_detail(*args, **kwargs)
+
+        self.db.session.add(user)
+        self.db.session.commit()
+
+        return user
+
+    def create_session_token(self, user_id):
+        session_token = create_session_token(user_id)
 
         self.db.session.add(session_token)
         self.db.session.commit()
 
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
+    def create_brand(self, brand_id, title):
+        brand = create_brand(id=brand_id, title=title)
+
+        db.session.add(brand)
+        db.session.commit()
+
+        return brand
+
+    def create_party(self, brand_id, party_id, title):
+        party = create_party(id=party_id, title=title, brand_id=brand_id)
+
+        db.session.add(party)
+        db.session.commit()
+
+        return party.to_tuple()
+
+    def set_brand_email_sender_address(self, brand_id, sender_address):
+        email_config = EmailConfig(brand_id, sender_address)
+
+        db.session.add(email_config)
+        db.session.commit()
 
     @contextmanager
     def client(self, *, user=None):

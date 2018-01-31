@@ -2,7 +2,7 @@
 byceps.services.tourney.models.tourney_category
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy.ext.orderinglist import ordering_list
 from ....database import db, generate_uuid
 from ....util.instances import ReprBuilder
 
-from ...party.models import Party
+from ...party.models.party import Party
 
 
 TourneyCategoryID = NewType('TourneyCategoryID', UUID)

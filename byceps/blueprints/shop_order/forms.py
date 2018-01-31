@@ -2,7 +2,7 @@
 byceps.blueprints.shop_order.forms
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -10,7 +10,7 @@ from wtforms import SelectField, StringField
 from wtforms.validators import InputRequired, Length
 
 from ...services.shop.cart.models import Cart
-from ...services.shop.order.models.order import Orderer
+from ...services.shop.order.models.orderer import Orderer
 from ...util.l10n import LocalizedForm
 
 

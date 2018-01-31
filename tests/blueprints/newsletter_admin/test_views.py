@@ -1,5 +1,5 @@
 """
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -11,23 +11,30 @@ from byceps.services.newsletter.types import SubscriptionState
 from tests.base import AbstractAppTestCase, CONFIG_FILENAME_TEST_ADMIN
 from tests.helpers import assign_permissions_to_user
 
-from testfixtures.user import create_user
-
 
 class NewsletterAdminTestCase(AbstractAppTestCase):
 
     def setUp(self):
         super().setUp(config_filename=CONFIG_FILENAME_TEST_ADMIN)
 
-        self.setup_admin()
+        self.admin = self.create_admin()
+
+        self.brand = self.create_brand('example', 'Example')
+
         self.setup_subscribers()
 
-    def setup_admin(self):
+    def create_admin(self):
+        admin = self.create_user('Admin')
+
         permission_ids = {'admin.access', 'newsletter.export_subscribers'}
-        assign_permissions_to_user(self.admin.id, 'admin', permission_ids)
+        assign_permissions_to_user(admin.id, 'admin', permission_ids)
+
+        self.create_session_token(admin.id)
+
+        return admin
 
     def setup_subscribers(self):
-        for user_number, enabled, states in [
+        for number, enabled, states in [
             (1, True,  [SubscriptionState.requested                             ]),
             (2, True,  [SubscriptionState.declined                              ]),
             (3, False, [SubscriptionState.requested                             ]),
@@ -35,7 +42,11 @@ class NewsletterAdminTestCase(AbstractAppTestCase):
             (5, True,  [SubscriptionState.requested, SubscriptionState.declined ]),
             (6, True,  [SubscriptionState.requested                             ]),
         ]:
-            user = self.create_user(user_number, enabled=enabled)
+            user = self.create_user(
+                screen_name='User-{:d}'.format(number),
+                email_address='user{:03d}@example.com'.format(number),
+                enabled=enabled)
+
             self.add_subscriptions(user, states)
 
     def test_export_subscribers(self):
@@ -63,10 +74,10 @@ class NewsletterAdminTestCase(AbstractAppTestCase):
         url = '/admin/newsletter/subscriptions/{}/export'.format(self.brand.id)
         response = self.get_as_admin(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content_type, 'application/json')
+        assert response.status_code == 200
+        assert response.content_type == 'application/json'
         data = json.loads(response.get_data().decode('utf-8'))
-        self.assertEqual(data, expected_data)
+        assert data == expected_data
 
     def test_export_subscriber_email_addresses(self):
         expected_data = '\n'.join([
@@ -82,22 +93,10 @@ class NewsletterAdminTestCase(AbstractAppTestCase):
         url = '/admin/newsletter/subscriptions/{}/export_email_addresses'.format(self.brand.id)
         response = self.get_as_admin(url)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content_type, 'text/plain; charset=utf-8')
-        self.assertEqual(response.mimetype, 'text/plain')
-        self.assertEqual(response.get_data(), expected_data)
-
-    def create_user(self, number, *, enabled=True):
-        screen_name = 'User-{:d}'.format(number)
-        email_address = 'user{:03d}@example.com'.format(number)
-
-        user = create_user(screen_name, email_address=email_address,
-                           enabled=enabled)
-
-        self.db.session.add(user)
-        self.db.session.commit()
-
-        return user
+        assert response.status_code == 200
+        assert response.content_type == 'text/plain; charset=utf-8'
+        assert response.mimetype == 'text/plain'
+        assert response.get_data() == expected_data
 
     def add_subscriptions(self, user, states):
         for state in states:

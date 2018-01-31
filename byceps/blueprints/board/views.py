@@ -2,7 +2,7 @@
 byceps.blueprints.board.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -17,13 +17,14 @@ from ...services.text_markup.service import get_smileys, render_html
 from ...services.user_badge import service as badge_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_success
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import redirect_to, respond_no_content_with_location
 
 from ..authorization.decorators import permission_required
 from ..authorization.registry import permission_registry
 
-from .authorization import BoardPostingPermission, BoardTopicPermission
+from .authorization import BoardPermission, BoardPostingPermission, \
+    BoardTopicPermission
 from .forms import PostingCreateForm, PostingUpdateForm, TopicCreateForm, \
     TopicUpdateForm
 from . import signals
@@ -32,6 +33,7 @@ from . import signals
 blueprint = create_blueprint('board', __name__)
 
 
+permission_registry.register_enum(BoardPermission)
 permission_registry.register_enum(BoardTopicPermission)
 permission_registry.register_enum(BoardPostingPermission)
 
@@ -47,9 +49,16 @@ blueprint.add_app_template_filter(render_html, 'bbcode')
 @templated
 def category_index():
     """List categories."""
-    brand_id = g.party.brand_id
+    board_id = _get_board_id()
+    categories = board_category_service.get_categories_with_last_updates(
+        board_id)
 
-    categories = board_category_service.get_categories_with_last_updates(brand_id)
+    user = g.current_user
+
+    for category in categories:
+        category.contains_unseen_postings = not user.is_anonymous \
+            and board_last_view_service.contains_category_unseen_postings(
+                category, user.id)
 
     return {
         'categories': categories,
@@ -61,25 +70,44 @@ def category_index():
 @templated
 def category_view(slug, page):
     """List latest topics in the category."""
-    brand_id = g.party.brand_id
-
-    category = board_category_service.find_category_by_slug(brand_id, slug)
+    board_id = _get_board_id()
+    category = board_category_service.find_category_by_slug(board_id, slug)
     if category is None:
         abort(404)
 
-    board_last_view_service.mark_category_as_just_viewed(category.id,
-                                                         g.current_user._user)
+    user = g.current_user
+
+    if not user.is_anonymous:
+        board_last_view_service.mark_category_as_just_viewed(category.id,
+                                                             user.id)
 
     topics_per_page = _get_topics_per_page_value()
 
-    topics = board_topic_service.paginate_topics(category.id,
-                                                 g.current_user._user, page,
+    topics = board_topic_service.paginate_topics(category.id, user._user, page,
                                                  topics_per_page)
+
+    for topic in topics.items:
+        topic.contains_unseen_postings = not user.is_anonymous \
+            and board_last_view_service.contains_topic_unseen_postings(
+                topic, user.id)
 
     return {
         'category': category,
         'topics': topics,
     }
+
+
+@blueprint.route('/categories/<category_id>/mark_all_topics_as_read', methods=['POST'])
+@respond_no_content_with_location
+def mark_all_topics_in_category_as_viewed(category_id):
+    category = board_category_service.find_category_by_id(category_id)
+    if category is None:
+        abort(404)
+
+    board_last_view_service.mark_all_topics_in_category_as_viewed(
+        category_id, g.current_user.id)
+
+    return url_for('.category_view', slug=category.slug)
 
 
 # -------------------------------------------------------------------- #
@@ -91,20 +119,26 @@ def category_view(slug, page):
 @templated
 def topic_view(topic_id, page):
     """List postings for the topic."""
+    user = g.current_user
+
     topic = board_topic_service.find_topic_visible_for_user(topic_id,
-        g.current_user._user)
+        user._user)
 
     if topic is None:
         abort(404)
 
+    if topic.category.board_id != _get_board_id():
+        abort(404)
+
     # Copy last view timestamp for later use to compare postings
     # against it.
-    last_viewed_at = topic.find_last_viewed_at(g.current_user._user)
+    last_viewed_at = board_last_view_service.find_topic_last_viewed_at(
+        topic.id, user.id)
 
     postings_per_page = _get_postings_per_page_value()
     if page == 0:
         posting = board_topic_service.find_default_posting_to_jump_to(
-            topic.id, g.current_user._user, last_viewed_at)
+            topic.id, user._user, last_viewed_at)
 
         if posting is None:
             page = 1
@@ -117,27 +151,23 @@ def topic_view(topic_id, page):
                           _anchor=posting.anchor)
             return redirect(url, code=307)
 
-    # Mark as viewed before aborting so a user can itself remove the
-    # 'new' tag from a locked topic.
-    board_last_view_service.mark_topic_as_just_viewed(topic.id,
-                                                      g.current_user._user)
+    if not user.is_anonymous:
+        # Mark as viewed before aborting so a user can itself remove the
+        # 'new' tag from a locked topic.
+        board_last_view_service.mark_topic_as_just_viewed(topic.id, user.id)
 
-    postings = board_posting_service.paginate_postings(topic.id,
-                                                       g.current_user._user,
+    postings = board_posting_service.paginate_postings(topic.id, user._user,
                                                        page, postings_per_page)
 
-    add_unseen_flag_to_postings(postings.items, g.current_user._user,
-                                last_viewed_at)
+    add_unseen_flag_to_postings(postings.items, user._user, last_viewed_at)
 
     is_last_page = not postings.has_next
-
-    brand_id = g.party.brand_id
 
     creator_ids = {posting.creator_id for posting in postings.items}
     badges_by_user_id = badge_service.get_badges_for_users(creator_ids,
                                                            featured_only=True)
     badges_by_user_id = _select_global_and_brand_badges(badges_by_user_id,
-                                                        brand_id)
+                                                        g.brand_id)
 
     context = {
         'topic': topic,
@@ -206,10 +236,10 @@ def topic_create(category_id):
     title = form.title.data.strip()
     body = form.body.data.strip()
 
-    topic = board_topic_service.create_topic(category, creator.id, title, body)
+    topic = board_topic_service.create_topic(category.id, creator.id, title, body)
 
     flash_success('Das Thema "{}" wurde hinzugefügt.', topic.title)
-    signals.topic_created.send(None, topic_id=topic.id)
+    signals.topic_created.send(None, topic_id=topic.id, url=topic.external_url)
 
     return redirect(topic.external_url)
 
@@ -222,7 +252,9 @@ def topic_update_form(topic_id, erroneous_form=None):
     topic = _get_topic_or_404(topic_id)
     url = topic.external_url
 
-    if topic.locked:
+    user_may_update = topic.may_be_updated_by_user(g.current_user._user)
+
+    if topic.locked and not user_may_update:
         flash_error(
             'Das Thema darf nicht bearbeitet werden weil es gesperrt ist.')
         return redirect(url)
@@ -231,7 +263,7 @@ def topic_update_form(topic_id, erroneous_form=None):
         flash_error('Das Thema darf nicht bearbeitet werden.')
         return redirect(url)
 
-    if not topic.may_be_updated_by_user(g.current_user._user):
+    if not user_may_update:
         flash_error('Du darfst dieses Thema nicht bearbeiten.')
         return redirect(url)
 
@@ -251,7 +283,9 @@ def topic_update(topic_id):
     topic = _get_topic_or_404(topic_id)
     url = topic.external_url
 
-    if topic.locked:
+    user_may_update = topic.may_be_updated_by_user(g.current_user._user)
+
+    if topic.locked and not user_may_update:
         flash_error(
             'Das Thema darf nicht bearbeitet werden weil es gesperrt ist.')
         return redirect(url)
@@ -260,7 +294,7 @@ def topic_update(topic_id):
         flash_error('Das Thema darf nicht bearbeitet werden.')
         return redirect(url)
 
-    if not topic.may_be_updated_by_user(g.current_user._user):
+    if not user_may_update:
         flash_error('Du darfst dieses Thema nicht bearbeiten.')
         return redirect(url)
 
@@ -276,15 +310,14 @@ def topic_update(topic_id):
 
 
 @blueprint.route('/topics/<uuid:topic_id>/moderate')
-@permission_required(BoardTopicPermission.hide)
+@permission_required(BoardPermission.hide)
 @templated
 def topic_moderate_form(topic_id):
     """Show a form to moderate the topic."""
+    board_id = _get_board_id()
     topic = _get_topic_or_404(topic_id)
 
-    brand_id = g.party.brand_id
-
-    categories = board_category_service.get_categories_excluding(brand_id,
+    categories = board_category_service.get_categories_excluding(board_id,
         topic.category_id)
 
     return {
@@ -294,7 +327,7 @@ def topic_moderate_form(topic_id):
 
 
 @blueprint.route('/topics/<uuid:topic_id>/flags/hidden', methods=['POST'])
-@permission_required(BoardTopicPermission.hide)
+@permission_required(BoardPermission.hide)
 @respond_no_content_with_location
 def topic_hide(topic_id):
     """Hide a topic."""
@@ -306,13 +339,14 @@ def topic_hide(topic_id):
     flash_success('Das Thema "{}" wurde versteckt.', topic.title, icon='hidden')
 
     signals.topic_hidden.send(None, topic_id=topic.id,
-                              moderator_id=moderator_id)
+                              moderator_id=moderator_id,
+                              url=topic.external_url)
 
     return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
 
 
 @blueprint.route('/topics/<uuid:topic_id>/flags/hidden', methods=['DELETE'])
-@permission_required(BoardTopicPermission.hide)
+@permission_required(BoardPermission.hide)
 @respond_no_content_with_location
 def topic_unhide(topic_id):
     """Un-hide a topic."""
@@ -325,7 +359,8 @@ def topic_unhide(topic_id):
         'Das Thema "{}" wurde wieder sichtbar gemacht.', topic.title, icon='view')
 
     signals.topic_unhidden.send(None, topic_id=topic.id,
-                                moderator_id=moderator_id)
+                                moderator_id=moderator_id,
+                                url=topic.external_url)
 
     return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
 
@@ -343,7 +378,8 @@ def topic_lock(topic_id):
     flash_success('Das Thema "{}" wurde geschlossen.', topic.title, icon='lock')
 
     signals.topic_locked.send(None, topic_id=topic.id,
-                              moderator_id=moderator_id)
+                              moderator_id=moderator_id,
+                              url=topic.external_url)
 
     return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
 
@@ -362,7 +398,8 @@ def topic_unlock(topic_id):
                   icon='unlock')
 
     signals.topic_unlocked.send(None, topic_id=topic.id,
-                                moderator_id=moderator_id)
+                                moderator_id=moderator_id,
+                                url=topic.external_url)
 
     return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
 
@@ -380,7 +417,8 @@ def topic_pin(topic_id):
     flash_success('Das Thema "{}" wurde angepinnt.', topic.title, icon='pin')
 
     signals.topic_pinned.send(None, topic_id=topic.id,
-                              moderator_id=moderator_id)
+                              moderator_id=moderator_id,
+                              url=topic.external_url)
 
     return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
 
@@ -398,7 +436,8 @@ def topic_unpin(topic_id):
     flash_success('Das Thema "{}" wurde wieder gelöst.', topic.title)
 
     signals.topic_unpinned.send(None, topic_id=topic.id,
-                                moderator_id=moderator_id)
+                                moderator_id=moderator_id,
+                                url=topic.external_url)
 
     return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
 
@@ -430,7 +469,8 @@ def topic_move(topic_id):
     signals.topic_moved.send(None, topic_id=topic.id,
                              old_category_id=old_category.id,
                              new_category_id=new_category.id,
-                             moderator_id=moderator_id)
+                             moderator_id=moderator_id,
+                             url=topic.external_url)
 
     return redirect_to('.category_view',
                        slug=topic.category.slug,
@@ -513,11 +553,13 @@ def posting_create(topic_id):
 
     posting = board_posting_service.create_posting(topic, creator.id, body)
 
-    board_last_view_service.mark_category_as_just_viewed(topic.category.id,
-                                                         g.current_user._user)
+    if not g.current_user.is_anonymous:
+        board_last_view_service.mark_category_as_just_viewed(topic.category.id,
+                                                             g.current_user.id)
 
     flash_success('Deine Antwort wurde hinzugefügt.')
-    signals.posting_created.send(None, posting_id=posting.id)
+    signals.posting_created.send(None, posting_id=posting.id,
+                                 url=posting.external_url)
 
     postings_per_page = _get_postings_per_page_value()
     page_count = topic.count_pages(postings_per_page)
@@ -538,7 +580,9 @@ def posting_update_form(posting_id, erroneous_form=None):
     page = calculate_posting_page_number(posting)
     url = url_for('.topic_view', topic_id=posting.topic.id, page=page)
 
-    if posting.topic.locked:
+    user_may_update = posting.may_be_updated_by_user(g.current_user._user)
+
+    if posting.topic.locked and not user_may_update:
         flash_error(
             'Der Beitrag darf nicht bearbeitet werden weil das Thema, '
             'zu dem dieser Beitrag gehört, gesperrt ist.')
@@ -548,7 +592,7 @@ def posting_update_form(posting_id, erroneous_form=None):
         flash_error('Der Beitrag darf nicht bearbeitet werden.')
         return redirect(url)
 
-    if not posting.may_be_updated_by_user(g.current_user._user):
+    if not user_may_update:
         flash_error('Du darfst diesen Beitrag nicht bearbeiten.')
         return redirect(url)
 
@@ -570,7 +614,9 @@ def posting_update(posting_id):
     page = calculate_posting_page_number(posting)
     url = url_for('.topic_view', topic_id=posting.topic.id, page=page)
 
-    if posting.topic.locked:
+    user_may_update = posting.may_be_updated_by_user(g.current_user._user)
+
+    if posting.topic.locked and not user_may_update:
         flash_error(
             'Der Beitrag darf nicht bearbeitet werden weil das Thema, '
             'zu dem dieser Beitrag gehört, gesperrt ist.')
@@ -580,7 +626,7 @@ def posting_update(posting_id):
         flash_error('Der Beitrag darf nicht bearbeitet werden.')
         return redirect(url)
 
-    if not posting.may_be_updated_by_user(g.current_user._user):
+    if not user_may_update:
         flash_error('Du darfst diesen Beitrag nicht bearbeiten.')
         return redirect(url)
 
@@ -596,7 +642,7 @@ def posting_update(posting_id):
 
 
 @blueprint.route('/postings/<uuid:posting_id>/moderate')
-@permission_required(BoardPostingPermission.hide)
+@permission_required(BoardPermission.hide)
 @templated
 def posting_moderate_form(posting_id):
     """Show a form to moderate the posting."""
@@ -608,7 +654,7 @@ def posting_moderate_form(posting_id):
 
 
 @blueprint.route('/postings/<uuid:posting_id>/flags/hidden', methods=['POST'])
-@permission_required(BoardPostingPermission.hide)
+@permission_required(BoardPermission.hide)
 @respond_no_content_with_location
 def posting_hide(posting_id):
     """Hide a posting."""
@@ -622,7 +668,8 @@ def posting_hide(posting_id):
     flash_success('Der Beitrag wurde versteckt.', icon='hidden')
 
     signals.posting_hidden.send(None, posting_id=posting.id,
-                                moderator_id=moderator_id)
+                                moderator_id=moderator_id,
+                                url=posting.external_url)
 
     return url_for('.topic_view',
                    topic_id=posting.topic.id,
@@ -631,7 +678,7 @@ def posting_hide(posting_id):
 
 
 @blueprint.route('/postings/<uuid:posting_id>/flags/hidden', methods=['DELETE'])
-@permission_required(BoardPostingPermission.hide)
+@permission_required(BoardPermission.hide)
 @respond_no_content_with_location
 def posting_unhide(posting_id):
     """Un-hide a posting."""
@@ -645,7 +692,8 @@ def posting_unhide(posting_id):
     flash_success('Der Beitrag wurde wieder sichtbar gemacht.', icon='view')
 
     signals.posting_unhidden.send(None, posting_id=posting.id,
-                                  moderator_id=moderator_id)
+                                  moderator_id=moderator_id,
+                                  url=posting.external_url)
 
     return url_for('.topic_view',
                    topic_id=posting.topic.id,
@@ -653,10 +701,17 @@ def posting_unhide(posting_id):
                    _anchor=posting.anchor)
 
 
+def _get_board_id():
+    return current_app.config['BOARD_ID']
+
+
 def _get_topic_or_404(topic_id):
     topic = board_topic_service.find_topic_by_id(topic_id)
 
     if topic is None:
+        abort(404)
+
+    if topic.category.board_id != _get_board_id():
         abort(404)
 
     return topic

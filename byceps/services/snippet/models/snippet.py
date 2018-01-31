@@ -6,7 +6,7 @@ Snippets of database-stored content. Can contain HTML and template
 engine syntax. Can be embedded in other templates or mounted as full
 page.
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -22,7 +22,7 @@ from ....database import BaseQuery, db, generate_uuid
 from ....typing import PartyID, UserID
 from ....util.instances import ReprBuilder
 
-from ...party.models import Party
+from ...party.models.party import Party
 from ...user.models.user import User
 
 

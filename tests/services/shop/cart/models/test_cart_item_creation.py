@@ -1,9 +1,9 @@
 """
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
-from nose2.tools.such import helper
+from pytest import raises
 
 from byceps.services.shop.cart.models import CartItem
 
@@ -19,12 +19,12 @@ def test_init_with_positive_quantity():
 
 
 def test_init_with_zero_quantity():
-    with helper.assertRaises(ValueError):
+    with raises(ValueError):
         create_item(0)
 
 
 def test_init_with_negative_quantity():
-    with helper.assertRaises(ValueError):
+    with raises(ValueError):
         create_item(-1)
 
 

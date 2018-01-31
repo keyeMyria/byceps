@@ -1,11 +1,9 @@
 """
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from byceps.services.authorization import service
-
-from testfixtures.user import create_user
 
 from tests.base import AbstractAppTestCase
 
@@ -17,8 +15,8 @@ class RoleToUserAssignmentTestCase(AbstractAppTestCase):
 
         self.permission_id = 'board_topic_hide'
 
-        self.role = self.create_role_with_permission('board_moderator',
-                                                     self.permission_id)
+        self.role = create_role_with_permission('board_moderator',
+                                                self.permission_id)
 
         self.user = self.create_user()
 
@@ -27,12 +25,12 @@ class RoleToUserAssignmentTestCase(AbstractAppTestCase):
         user_id = self.user.id
 
         user_permission_ids_before = service.get_permission_ids_for_user(user_id)
-        self.assertNotIn(self.permission_id, user_permission_ids_before)
+        assert self.permission_id not in user_permission_ids_before
 
         service.assign_role_to_user(user_id, role_id)
 
         user_permission_ids_after = service.get_permission_ids_for_user(user_id)
-        self.assertIn(self.permission_id, user_permission_ids_after)
+        assert self.permission_id in user_permission_ids_after
 
     def test_deassign_role_from_user(self):
         role_id = self.role.id
@@ -41,28 +39,18 @@ class RoleToUserAssignmentTestCase(AbstractAppTestCase):
         service.assign_role_to_user(user_id, role_id)
 
         user_permission_ids_before = service.get_permission_ids_for_user(user_id)
-        self.assertIn(self.permission_id, user_permission_ids_before)
+        assert self.permission_id in user_permission_ids_before
 
         service.deassign_role_from_user(user_id, role_id)
 
         user_permission_ids_after = service.get_permission_ids_for_user(user_id)
-        self.assertNotIn(self.permission_id, user_permission_ids_after)
+        assert self.permission_id not in user_permission_ids_after
 
-    # -------------------------------------------------------------------- #
-    # helpers
 
-    def create_user(self):
-        user = create_user('Alice')
+def create_role_with_permission(role_id, permission_id):
+    role = service.create_role(role_id, role_id)
 
-        self.db.session.add(user)
-        self.db.session.commit()
+    permission = service.create_permission(permission_id, permission_id)
+    service.assign_permission_to_role(permission.id, role.id)
 
-        return user
-
-    def create_role_with_permission(self, role_id, permission_id):
-        role = service.create_role(role_id, role_id)
-
-        permission = service.create_permission(permission_id, permission_id)
-        service.assign_permission_to_role(permission.id, role.id)
-
-        return role
+    return role

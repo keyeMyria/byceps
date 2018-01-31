@@ -2,7 +2,7 @@
 byceps.services.shop.order.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -17,16 +17,18 @@ from ....blueprints.shop_order.signals import order_placed
 from ....database import db
 from ....typing import PartyID, UserID
 
-from ...party.models import Party
+from ...party.models.party import Party
 
 from ..article.models.article import Article
 from ..cart.models import Cart
 from ..sequence import service as sequence_service
 
-from .models.order import Order, Orderer, OrderID, OrderNumber, OrderTuple, \
-    PaymentMethod, PaymentState
+from .models.order import Order, OrderID, OrderNumber, OrderTuple
 from .models.order_event import OrderEvent
 from .models.order_item import OrderItem
+from .models.orderer import Orderer
+from .models.payment import PaymentMethod, PaymentState
+from . import action_service
 
 
 class OrderFailed(Exception):
@@ -111,7 +113,7 @@ def set_invoiced_flag(order: Order, initiator_id: UserID) -> None:
         'initiator_id': str(initiator_id),
     }
 
-    event = OrderEvent(now, event_type, order.id, **data)
+    event = OrderEvent(now, event_type, order.id, data)
     db.session.add(event)
 
     order.invoice_created_at = now
@@ -127,7 +129,7 @@ def unset_invoiced_flag(order: Order, initiator_id: UserID) -> None:
         'initiator_id': str(initiator_id),
     }
 
-    event = OrderEvent(now, event_type, order.id, **data)
+    event = OrderEvent(now, event_type, order.id, data)
     db.session.add(event)
 
     order.invoice_created_at = None
@@ -146,7 +148,7 @@ def set_shipped_flag(order: Order, initiator_id: UserID) -> None:
         'initiator_id': str(initiator_id),
     }
 
-    event = OrderEvent(now, event_type, order.id, **data)
+    event = OrderEvent(now, event_type, order.id, data)
     db.session.add(event)
 
     order.shipped_at = now
@@ -165,7 +167,7 @@ def unset_shipped_flag(order: Order, initiator_id: UserID) -> None:
         'initiator_id': str(initiator_id),
     }
 
-    event = OrderEvent(now, event_type, order.id, **data)
+    event = OrderEvent(now, event_type, order.id, data)
     db.session.add(event)
 
     order.shipped_at = None
@@ -208,7 +210,7 @@ def cancel_order(order: Order, updated_by_id: UserID, reason: str) -> None:
         'reason': reason,
     }
 
-    event = OrderEvent(now, event_type, order.id, **data)
+    event = OrderEvent(now, event_type, order.id, data)
     db.session.add(event)
 
     # Make the reserved quantity of articles available again.
@@ -217,10 +219,17 @@ def cancel_order(order: Order, updated_by_id: UserID, reason: str) -> None:
 
     db.session.commit()
 
+    action_service.execute_actions(order, payment_state_to)
 
-def mark_order_as_paid(order: Order, payment_method: PaymentMethod,
+
+def mark_order_as_paid(order_id: OrderID, payment_method: PaymentMethod,
                        updated_by_id: UserID) -> None:
     """Mark the order as paid."""
+    order = find_order(order_id)
+
+    if order is None:
+        raise ValueError('Unknown order ID')
+
     if order.is_paid:
         raise OrderAlreadyMarkedAsPaid()
 
@@ -239,10 +248,12 @@ def mark_order_as_paid(order: Order, payment_method: PaymentMethod,
         'payment_method': payment_method.name,
     }
 
-    event = OrderEvent(now, event_type, order.id, **data)
+    event = OrderEvent(now, event_type, order.id, data)
     db.session.add(event)
 
     db.session.commit()
+
+    action_service.execute_actions(order, payment_state_to)
 
 
 def _update_payment_state(order: Order, state: PaymentState,
@@ -265,13 +276,18 @@ def find_order(order_id: OrderID) -> Optional[Order]:
     return Order.query.get(order_id)
 
 
-def find_order_with_details(order_id: OrderID) -> Optional[Order]:
+def find_order_with_details(order_id: OrderID) -> Optional[OrderTuple]:
     """Return the order with that id, or `None` if not found."""
-    return Order.query \
+    order = Order.query \
         .options(
             db.joinedload('items'),
         ) \
         .get(order_id)
+
+    if order is None:
+        return None
+
+    return order.to_tuple()
 
 
 def find_order_by_order_number(order_number: OrderNumber) -> Optional[Order]:
@@ -284,6 +300,9 @@ def find_order_by_order_number(order_number: OrderNumber) -> Optional[Order]:
 def find_orders_by_order_numbers(order_numbers: Set[OrderNumber]
                                 ) -> Sequence[Order]:
     """Return the orders with those order numbers."""
+    if not order_numbers:
+        return []
+
     return Order.query \
         .filter(Order.order_number.in_(order_numbers)) \
         .all()
@@ -302,6 +321,7 @@ def get_order_count_by_party_id() -> Dict[PartyID, int]:
 
 
 def get_orders_for_party_paginated(party_id: PartyID, page: int, per_page: int, *,
+                                   search_term=None,
                                    only_payment_state: Optional[PaymentState]=None,
                                    only_shipped: Optional[bool]=None
                                   ) -> Pagination:
@@ -313,6 +333,11 @@ def get_orders_for_party_paginated(party_id: PartyID, page: int, per_page: int, 
     query = Order.query \
         .for_party_id(party_id) \
         .order_by(Order.created_at.desc())
+
+    if search_term:
+        ilike_pattern = '%{}%'.format(search_term)
+        query = query \
+            .filter(Order.order_number.ilike(ilike_pattern))
 
     if only_payment_state is not None:
         query = query.filter_by(_payment_state=only_payment_state.name)
@@ -331,6 +356,9 @@ def get_orders_for_party_paginated(party_id: PartyID, page: int, per_page: int, 
 def get_orders_placed_by_user(user_id: UserID) -> Sequence[Order]:
     """Return orders placed by the user."""
     return Order.query \
+        .options(
+            db.joinedload('items'),
+        ) \
         .placed_by_id(user_id) \
         .order_by(Order.created_at.desc()) \
         .all()
@@ -340,6 +368,9 @@ def get_orders_placed_by_user_for_party(user_id: UserID, party_id: PartyID
                                        ) -> Sequence[OrderTuple]:
     """Return orders placed by the user for that party."""
     orders = Order.query \
+        .options(
+            db.joinedload('items'),
+        ) \
         .for_party_id(party_id) \
         .placed_by_id(user_id) \
         .order_by(Order.created_at.desc()) \
@@ -356,11 +387,3 @@ def has_user_placed_orders(user_id: UserID, party_id: PartyID) -> bool:
         .count()
 
     return orders_total > 0
-
-
-def get_order_events(order_id) -> Sequence[OrderEvent]:
-    """Return the events for that order."""
-    return OrderEvent.query \
-        .filter_by(order_id=order_id) \
-        .order_by(OrderEvent.occured_at) \
-        .all()

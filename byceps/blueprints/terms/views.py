@@ -2,7 +2,7 @@
 byceps.blueprints.terms.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -12,7 +12,7 @@ from ...services.terms import service as terms_service
 from ...services.verification_token import service as verification_token_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_success
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import redirect_to
 
 from .forms import ConsentForm
@@ -25,9 +25,7 @@ blueprint = create_blueprint('terms', __name__)
 @templated
 def view_current():
     """Show the current version of this brand's terms and conditions."""
-    brand_id = g.party.brand_id
-
-    version = terms_service.get_current_version(brand_id)
+    version = terms_service.get_current_version(g.brand_id)
 
     return {
         'version': version,

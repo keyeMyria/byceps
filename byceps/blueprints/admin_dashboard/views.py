@@ -2,7 +2,7 @@
 byceps.blueprints.admin_dashboard.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -10,10 +10,6 @@ from datetime import date, timedelta
 
 from flask import abort
 
-from ...services.board import \
-    category_service as board_category_service, \
-    posting_service as board_posting_service, \
-    topic_service as board_topic_service
 from ...services.brand import service as brand_service
 from ...services.news import service as news_service
 from ...services.newsletter import service as newsletter_service
@@ -29,7 +25,7 @@ from ...services.terms import service as terms_service
 from ...services.ticketing import ticket_service
 from ...services.user import service as user_service
 from ...util.framework.blueprint import create_blueprint
-from ...util.templating import templated
+from ...util.framework.templating import templated
 
 from ..authorization.decorators import permission_required
 from ..authorization.registry import permission_registry
@@ -90,6 +86,8 @@ def view_brand(brand_id):
     if brand is None:
         abort(404)
 
+    active_parties = party_service.get_active_parties(brand_id=brand.id)
+
     party_count = party_service.count_parties_for_brand(brand.id)
 
     orga_count = orga_service.count_orgas_for_brand(brand.id)
@@ -101,14 +99,10 @@ def view_brand(brand_id):
 
     current_terms_version = terms_service.find_current_version(brand.id)
 
-    board_category_count = board_category_service.count_categories_for_brand(
-        brand.id)
-    board_topic_count = board_topic_service.count_topics_for_brand(brand.id)
-    board_posting_count = board_posting_service.count_postings_for_brand(
-        brand.id)
-
     return {
         'brand': brand,
+
+        'active_parties': active_parties,
 
         'party_count': party_count,
 
@@ -119,10 +113,6 @@ def view_brand(brand_id):
         'newsletter_subscriber_count': newsletter_subscriber_count,
 
         'current_terms_version': current_terms_version,
-
-        'board_category_count': board_category_count,
-        'board_topic_count': board_topic_count,
-        'board_posting_count': board_posting_count,
     }
 
 
@@ -147,6 +137,8 @@ def view_party(party_id):
     article_count = article_service.count_articles_for_party(party.id)
     open_order_count = order_service.count_open_orders_for_party(party.id)
     tickets_sold = ticket_service.count_tickets_for_party(party.id)
+    tickets_checked_in = ticket_service.count_tickets_checked_in_for_party(
+        party.id)
 
     return {
         'party': party,
@@ -162,4 +154,5 @@ def view_party(party_id):
         'open_order_count': open_order_count,
 
         'tickets_sold': tickets_sold,
+        'tickets_checked_in': tickets_checked_in,
     }

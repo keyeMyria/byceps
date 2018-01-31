@@ -25,7 +25,7 @@ have been (re-)launched on BYCEPS.
 .. _NorthCon: https://www.northcon.de/
 
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 :Website: http://homework.nwsnet.de/releases/b1ce/#byceps
 
@@ -39,7 +39,7 @@ See ``docs/installation.rst``.
 Testing
 =======
 
-In the activated virtual environment, install tox_ and nose2_:
+In the activated virtual environment, install tox_ and pytest_:
 
 .. code:: sh
 
@@ -56,7 +56,7 @@ for the Python versions specified in `tox.ini`.
 
 
 .. _tox: http://tox.testrun.org/
-.. _nose2: https://github.com/nose-devs/nose2
+.. _pytest: http://pytest.org/
 
 
 Serving
@@ -79,3 +79,21 @@ the latter both serve static files and provide SSL encryption.
 .. _uWSGI: http://uwsgi-docs.readthedocs.io/
 .. _Gunicorn: http://gunicorn.org/
 .. _nginx: http://nginx.org/
+
+
+Shell
+=====
+
+The application shell is an interactive command line that gives access to
+BYCEPS' functionality as well as the persisted data.
+
+.. code:: sh
+
+    (venv)$ BYCEPS_CONFIG=../config/development_admin.py FLASK_APP=app.py flask shell
+
+Installation of an extra package makes the shell easier to use due to features
+like command history and auto-completion:
+
+.. code:: sh
+
+    (venv)$ pip install flask-shell-ipython

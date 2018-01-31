@@ -6,7 +6,6 @@ html {
 body {
   background-color: #f4f4f4;
   color: #333333;
-  font-family: sans-serif;
   line-height: 1.4;
   min-height: 100%;
 }
@@ -14,10 +13,11 @@ body {
 
 /* layout */
 
-#page,
-#topbar-body {
-  margin: 0 auto;
-  max-width: 960px;
+@media (min-width: 60rem) { /* 960px / 16px */
+  .container {
+    max-width: 960px;
+    width: 960px;
+  }
 }
 
 @media (min-width: 36rem) { /* 576px / 16px */
@@ -135,22 +135,24 @@ main {
 nav.main ol {
   width: 100%;
 }
+
 nav.main li {
   display: block;
   margin: 0;
   padding: 0;
   white-space: nowrap;
 }
+
 nav.main a {
   color: currentColor;
   display: block;
   line-height: 1.5;
   padding: 0 20px;
+}
+nav.main a:not(:hover) {
   text-decoration: none;
 }
-nav.main a:hover {
-  text-decoration: underline;
-}
+
 nav.main .current a {
   font-weight: bold;
 }
@@ -179,7 +181,6 @@ h2 {
 /* news */
 
 .news-item {
-  -moz-hyphens: auto;
   -webkit-hyphens: auto;
   hyphens: auto;
 }
@@ -234,13 +235,16 @@ h2 {
 
 }
 
-form.board-posting-create-form-inline textarea.collapsible ~ .supplement {
+form.board-posting-create-form-inline textarea.collapsible ~ .collapsible-neighbor {
   display: block;
+}
+form.board-posting-create-form-inline textarea.collapsible.collapsed ~ .collapsible-neighbor {
+  display: none;
+}
+
+form.board-posting-create-form-inline textarea.collapsible ~ .collapsible-neighbor .supplement {
   margin-left: 0;
   width: auto;
-}
-form.board-posting-create-form-inline textarea.collapsible.collapsed ~ .supplement {
-  display: none;
 }
 
 form.board-posting-create-form-inline .label {
@@ -251,7 +255,7 @@ form.board-posting-create-form-inline .label {
 /* board, tourneys */
 
 .user-comments {
-  margin: 30px 0 20px 0;
+  margin: 20px 0;
 }
 
 .user-comment {
@@ -259,7 +263,7 @@ form.board-posting-create-form-inline .label {
   flex-wrap: wrap;
 }
 .user-comment + .user-comment {
-  margin-top: 15px;
+  margin-top: 20px;
 }
 
 .user-comment-aside {
@@ -277,7 +281,7 @@ form.board-posting-create-form-inline .label {
     display: flex;
     flex: 0 0 116px;
     flex-direction: column;
-    padding-bottom: 15px;
+    padding-bottom: 20px;
   }
 
   .user-comment-aside .creator .avatar {
@@ -318,10 +322,9 @@ form.board-posting-create-form-inline .label {
 
 .user-comment-meta-top a {
   border: none;
-  text-decoration: none;
 }
-.user-comment-meta-top a:hover {
-  text-decoration: underline;
+.user-comment-meta-top a:not(:hover) {
+  text-decoration: none;
 }
 
 .user-comment-meta-top .user-link a {
@@ -344,6 +347,7 @@ form.board-posting-create-form-inline .label {
 
 .user-comment-actions .dropdown-toggle {
   background-color: transparent;
+  background-image: none;
   border: none;
   color: currentColor;
   display: inline-block;
@@ -397,10 +401,9 @@ form.board-posting-create-form-inline .label {
 .user-comment footer a {
   border: none;
   color: currentColor;
-  text-decoration: none;
 }
-.user-comment footer a:hover {
-  text-decoration: underline;
+.user-comment footer a:not(:hover) {
+  text-decoration: none;
 }
 
 .user-comment .quote-intro {
@@ -603,23 +606,144 @@ form.board-posting-create-form-inline .label {
   margin: 0 0 1rem 0;
 }
 
+.user-profile-attended-parties li + li {
+  margin-top: 0.5rem;
+}
+
+
+/* tickets */
+
+.ticket-grid {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0 0 0 -1.25rem;
+  padding: 0;
+}
+
+.ticket-grid > li {
+  padding: 1.25rem 0 0 1.25rem;
+}
+
+.ticket-card {
+  border: #dddddd solid 1px;
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+}
+
+.ticket-card-cell {
+  border:  #dddddd solid 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8125rem; /* 13px / 16px */
+  justify-content: space-between;
+}
+
+.ticket-card-cell + .ticket-card-cell {
+  border-width: 1px 0 0 0;
+}
+
+.ticket-card.ticket-used-by-me,
+.ticket-card.ticket-used-by-me .ticket-card-cell {
+  border-color: #999999;
+}
+
+.ticket-card-cell-block {
+  margin: 1rem;
+}
+
+.ticket-card-cell-block + .ticket-card-cell-block {
+  margin-top: 0;
+}
+
+.ticket-icon {
+  display: none;
+  font-size: 4rem;
+  text-align: center;
+}
+
+.ticket-card-cell .label-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.ticket-card-cell .label {
+  color: #888888;
+  font-size: 0.625rem; /* 10px / 16px */
+  text-transform: uppercase;
+}
+
+.ticket-card-cell .label-buttons {
+  margin-top: -3px;
+}
+
+.ticket-card-cell a {
+  color: currentColor;
+}
+.ticket-card-cell a:not(:hover) {
+  text-decoration: none;
+}
+.ticket-card-cell .dropdown a:hover {
+  text-decoration: none;
+}
+
+.ticket-code {
+  font-size: 1.25rem; /* 20px / 16px */
+  font-weight: bold;
+}
+
+.ticket-user {
+  margin-bottom: -0.5rem;
+}
+
+.ticket-user .avatar,
+.ticket-user-placeholder {
+  margin-bottom: 0.3rem;
+}
+
+.ticket-user-placeholder {
+  border: #dddddd dashed 1px;
+  border-radius: 3px;
+  display: inline-block;
+  height: 46px;
+  width: 46px;
+}
+
+@media (min-width: 40rem) { /* 640px / 16px */
+
+  .ticket-grid > li {
+    width: 100%;
+  }
+
+  .ticket-card {
+    flex-direction: row;
+    width: 90%;
+  }
+
+  .ticket-card-cell {
+    width: 25%;
+  }
+
+  .ticket-card-cell + .ticket-card-cell {
+    border-width: 0 0 0 1px;
+  }
+
+  .ticket-icon {
+    display: block;
+  }
+}
+
 
 /* links */
 
-a.disguised {
-  color: currentColor;
-  text-decoration: none;
-}
-a.disguised:hover {
-  text-decoration: underline;
-}
-
 main h1 a {
   color: currentColor;
-  text-decoration: none;
 }
-main h1 a:hover {
-  text-decoration: underline;
+main h1 a:not(:hover) {
+  text-decoration: none;
 }
 
 
@@ -662,8 +786,8 @@ table.index td.bignumber {
     text-shadow: none !important;
   }
 
-  #page {
-    margin: 0;
+  .container {
+    max-width: none;
     width: auto;
   }
 

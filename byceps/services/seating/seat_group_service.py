@@ -2,7 +2,7 @@
 byceps.services.seating.seat_group_service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -11,27 +11,27 @@ from typing import Sequence
 from ...database import db
 from ...typing import PartyID
 
+from ..ticketing.models.category import CategoryID
 from ..ticketing.models.ticket import Ticket
 from ..ticketing.models.ticket_bundle import TicketBundle
 
-from .models.category import Category
 from .models.seat import Seat
 from .models.seat_group import Occupancy as SeatGroupOccupancy, SeatGroup, \
     SeatGroupAssignment
 
 
-def create_seat_group(party_id: PartyID, seat_category: Category, title: str,
-                      seats: Sequence[Seat]) -> SeatGroup:
+def create_seat_group(party_id: PartyID, ticket_category_id: CategoryID,
+                      title: str, seats: Sequence[Seat]) -> SeatGroup:
     """Create a seat group and assign the given seats."""
     seat_quantity = len(seats)
     if seat_quantity == 0:
         raise ValueError("No seats specified.")
 
-    seats_categories = {seat.category for seat in seats}
-    if len(seats_categories) != 1 or (seat_category not in seats_categories):
-        raise ValueError("Seats' category IDs do not match the group's.")
+    ticket_category_ids = {seat.category_id for seat in seats}
+    if len(ticket_category_ids) != 1 or (ticket_category_id not in ticket_category_ids):
+        raise ValueError("Seats' ticket category IDs do not match the group's.")
 
-    group = SeatGroup(party_id, seat_category, seat_quantity, title)
+    group = SeatGroup(party_id, ticket_category_id, seat_quantity, title)
     db.session.add(group)
 
     for seat in seats:
@@ -94,7 +94,7 @@ def _ensure_categories_match(seat_group: SeatGroup, ticket_bundle: TicketBundle
     """Raise an error if the seat group's and the ticket bundle's
     categories don't match.
     """
-    if seat_group.seat_category_id != ticket_bundle.ticket_category_id:
+    if seat_group.ticket_category_id != ticket_bundle.ticket_category_id:
         raise ValueError('Seat and ticket categories do not match.')
 
 

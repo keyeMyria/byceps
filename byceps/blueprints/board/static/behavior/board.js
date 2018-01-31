@@ -1,4 +1,4 @@
-$(function() {
+onDomReady(function() {
 
   confirmed_post_on_click('[data-action="topic-hide"]', 'Thema verstecken?');
   confirmed_delete_on_click('[data-action="topic-unhide"]', 'Thema wieder anzeigen?');
@@ -11,17 +11,15 @@ $(function() {
   confirmed_delete_on_click('[data-action="posting-unhide"]', 'Beitrag wieder anzeigen?');
 
   var collpasedTextareas = document.querySelectorAll('textarea.collapsed');
-  forEach(collpasedTextareas, function(element) {
-    // Expand collapsible text areas after receiving focus.
-    element.addEventListener('focus', function() {
-      element.classList.remove('collapsed');
+  forEach(collpasedTextareas, function(textarea) {
+    // Expand collapsible text area after receiving focus.
+    textarea.addEventListener('focus', function() {
+      textarea.classList.remove('collapsed');
     });
 
-    // Collapse *empty* text areas after losing focus.
-    element.addEventListener('blur', function() {
-      if (element.value == '') {
-        element.classList.add('collapsed');
-      }
+    // Collapse text area on click on cancel button.
+    textarea.form.querySelector('button.cancel').addEventListener('click', function() {
+      textarea.classList.add('collapsed');
     });
   });
 

@@ -1,18 +1,21 @@
 """
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from byceps.services.tourney.models.match import MatchComment
 
-from testfixtures.authentication import create_session_token
 from testfixtures.tourney import create_match
-from testfixtures.user import create_user
 
 from tests.base import AbstractAppTestCase
 
 
 class MatchTestCase(AbstractAppTestCase):
+
+    def setUp(self):
+        super().setUp()
+
+        self.create_brand_and_party()
 
     def test_create_comment_on_existent_match(self):
         player = self.create_player()
@@ -21,18 +24,18 @@ class MatchTestCase(AbstractAppTestCase):
 
         response = self.request_comment_creation(match.id, user=player)
 
-        self.assertEqual(response.status_code, 201)
+        assert response.status_code == 201
 
-        self.assertCommentCountForMatch(match, 1)
+        assert get_comment_count_for_match(match) == 1
 
     def test_create_comment_on_existent_match_as_anonymous_user(self):
         match = self.create_match()
 
         response = self.request_comment_creation(match.id)
 
-        self.assertEqual(response.status_code, 403)
+        assert response.status_code == 403
 
-        self.assertCommentCountForMatch(match, 0)
+        assert get_comment_count_for_match(match) == 0
 
     def test_create_comment_on_nonexistent_match(self):
         player = self.create_player()
@@ -41,20 +44,14 @@ class MatchTestCase(AbstractAppTestCase):
 
         response = self.request_comment_creation(unknown_match_id, user=player)
 
-        self.assertEqual(response.status_code, 404)
+        assert response.status_code == 404
 
     # helpers
 
     def create_player(self):
-        player = create_user()
+        player = self.create_user()
 
-        self.db.session.add(player)
-        self.db.session.commit()
-
-        session_token = create_session_token(player.id)
-
-        self.db.session.add(session_token)
-        self.db.session.commit()
+        self.create_session_token(player.id)
 
         return player
 
@@ -76,6 +73,6 @@ class MatchTestCase(AbstractAppTestCase):
         with self.client(user=user) as client:
             return client.post(url, data=form_data)
 
-    def assertCommentCountForMatch(self, match, expected):
-        comment_count = MatchComment.query.for_match(match.id).count()
-        self.assertEqual(comment_count, expected)
+
+def get_comment_count_for_match(match):
+    return MatchComment.query.for_match(match.id).count()

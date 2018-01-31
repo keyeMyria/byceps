@@ -2,21 +2,28 @@
 byceps.services.ticketing.ticket_bundle_service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
+
+from typing import Optional, Sequence
 
 from ...database import db
 from ...typing import UserID
 
-from ..seating.models.category import CategoryID
+from ..shop.order.models.order import OrderNumber
 
-from .models.ticket_bundle import TicketBundle
+from . import event_service
+from .models.category import CategoryID
+from .models.ticket import Ticket
+from .models.ticket_bundle import TicketBundle, TicketBundleID
 from .ticket_service import build_tickets
 
 
-def create_ticket_bundle(category_id: CategoryID, ticket_quantity: int,
-                         owned_by_id: UserID) -> TicketBundle:
+def create_bundle(category_id: CategoryID, ticket_quantity: int,
+                  owned_by_id: UserID,
+                  *, order_number: Optional[OrderNumber]=None
+                 ) -> TicketBundle:
     """Create a ticket bundle and the given quantity of tickets."""
     if ticket_quantity < 1:
         raise ValueError('Ticket quantity must be positive.')
@@ -25,7 +32,7 @@ def create_ticket_bundle(category_id: CategoryID, ticket_quantity: int,
     db.session.add(bundle)
 
     tickets = list(build_tickets(category_id, owned_by_id, ticket_quantity,
-                                 bundle=bundle))
+                                 bundle=bundle, order_number=order_number))
     db.session.add_all(tickets)
 
     db.session.commit()
@@ -33,11 +40,29 @@ def create_ticket_bundle(category_id: CategoryID, ticket_quantity: int,
     return bundle
 
 
-def delete_ticket_bundle(bundle: TicketBundle) -> None:
-    """Delete the ticket bundle and the tickets associated with it."""
-    for ticket in bundle.tickets:
-        db.session.delete(ticket)
+def revoke_bundle(bundle_id: TicketBundleID) -> None:
+    """Revoke the tickets included in this bundle."""
+    bundle = find_bundle(bundle_id)
 
-    db.session.delete(bundle)
+    if bundle is None:
+        raise ValueError('Unknown ticket bundle ID.')
+
+    for ticket in bundle.tickets:
+        ticket.revoked = True
+
+        event = event_service._build_event('ticket-revoked', ticket.id, {})
+        db.session.add(event)
 
     db.session.commit()
+
+
+def find_bundle(bundle_id: TicketBundleID) -> Optional[TicketBundle]:
+    """Return the ticket bundle with that id, or `None` if not found."""
+    return TicketBundle.query.get(bundle_id)
+
+
+def find_tickets_for_bundle(bundle_id: TicketBundleID) -> Sequence[Ticket]:
+    """Return all tickets included in this bundle."""
+    return Ticket.query \
+        .filter(Ticket.bundle_id == bundle_id) \
+        .all()

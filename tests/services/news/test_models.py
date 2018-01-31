@@ -1,9 +1,7 @@
 """
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
-
-from nose2.tools import params
 
 from testfixtures.news import create_current_version_association, \
     create_item, create_item_version
@@ -14,15 +12,24 @@ from tests.helpers import current_party_set
 
 class ItemTestCase(AbstractAppTestCase):
 
-    @params(
-        ('without-image', None          , None                                        ),
-        ('with-image'   , 'breaking.png', 'http://example.com/brand/news/breaking.png'),
-    )
-    def test_image_url(self, slug, image_url_path, expected):
-        item = self.create_item_with_version(slug, image_url_path)
+    def setUp(self):
+        super().setUp()
+
+        self.editor = self.create_user()
+
+        self.create_brand_and_party()
+
+    def test_image_url_with_image(self):
+        item = self.create_item_with_version('with-image', 'breaking.png')
 
         with current_party_set(self.app, self.party), self.app.app_context():
-            self.assertEqual(item.image_url, expected)
+            assert item.image_url == 'http://example.com/brand/news/breaking.png'
+
+    def test_image_url_without_image(self):
+        item = self.create_item_with_version('without-image', None)
+
+        with current_party_set(self.app, self.party), self.app.app_context():
+            assert item.image_url is None
 
     # -------------------------------------------------------------------- #
     # helpers
@@ -31,7 +38,7 @@ class ItemTestCase(AbstractAppTestCase):
         item = create_item(self.brand.id, slug=slug)
         self.db.session.add(item)
 
-        version = create_item_version(item, self.admin.id,
+        version = create_item_version(item, self.editor.id,
                                       image_url_path=image_url_path)
         self.db.session.add(version)
 

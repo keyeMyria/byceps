@@ -2,7 +2,7 @@
 byceps.services.user_badge.models.badge
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -20,8 +20,15 @@ from ....util.instances import ReprBuilder
 BadgeID = NewType('BadgeID', UUID)
 
 
-BadgeTuple = namedtuple('BadgeTuple',
-    'id, brand_id, label, description, image_url')
+BadgeTuple = namedtuple('BadgeTuple', [
+    'id',
+    'brand_id',
+    'slug',
+    'label',
+    'description',
+    'image_url',
+    'featured',
+])
 
 
 class Badge(db.Model):
@@ -30,20 +37,22 @@ class Badge(db.Model):
 
     id = db.Column(db.Uuid, default=generate_uuid, primary_key=True)
     brand_id = db.Column(db.Unicode(20), db.ForeignKey('brands.id'), nullable=True)
+    slug = db.Column(db.Unicode(40), unique=True, index=True, nullable=False)
     label = db.Column(db.Unicode(80), unique=True, nullable=False)
     description = db.Column(db.UnicodeText, nullable=True)
     image_filename = db.Column(db.Unicode(80), nullable=False)
-    is_featured = db.Column(db.Boolean, default=False, nullable=False)
+    featured = db.Column(db.Boolean, default=False, nullable=False)
 
-    def __init__(self, label: str, image_filename: str, *,
+    def __init__(self, slug: str, label: str, image_filename: str, *,
                  brand_id: Optional[BrandID]=None,
                  description: Optional[str]=None,
-                 is_featured: bool=False) -> None:
+                 featured: bool=False) -> None:
         self.brand_id = brand_id
+        self.slug = slug
         self.label = label
         self.description = description
         self.image_filename = image_filename
-        self.is_featured = is_featured
+        self.featured = featured
 
     @property
     def image_url(self) -> str:
@@ -55,9 +64,11 @@ class Badge(db.Model):
         return BadgeTuple(
             self.id,
             self.brand_id,
+            self.slug,
             self.label,
             self.description,
-            self.image_url
+            self.image_url,
+            self.featured
         )
 
     def __repr__(self) -> str:

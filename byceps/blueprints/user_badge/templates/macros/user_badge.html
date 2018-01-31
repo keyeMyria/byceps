@@ -4,7 +4,7 @@
 
 
 {% macro render_user_badge_linked(badge, size) -%}
-<a href="{{ url_for('user_badge.view', badge_id=badge.id) }}" class="user-badge size-{{ size }}" title="{{ badge.label }}"><img src="{{ badge.image_url }}"></a>
+<a href="{{ url_for('user_badge.view', slug=badge.slug) }}" class="user-badge size-{{ size }}" title="{{ badge.label }}"><img src="{{ badge.image_url }}"></a>
 {%- endmacro %}
 
 
@@ -23,13 +23,8 @@
   <tr>
     <td>{{ render_user_badge_linked(badge, 32) }}</td>
     <td>{{ badge.label }}</td>
+    <td class="centered dimmed">{% if quantity > 1 %}&times;{{ quantity }}{% endif %}</td>
   </tr>
-  {%- if quantity > 1 %}
-  <tr>
-    <td class="centered dimmed" style="padding-top: 0;">{{ quantity }}&times;</td>
-    <td></td>
-  </tr>
-  {%- endif %}
   {%- endfor %}
 </table>
 {%- endmacro %}

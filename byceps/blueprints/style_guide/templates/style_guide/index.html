@@ -1,116 +1,93 @@
 {% extends 'layout/base_auto.html' %}
+{% from 'macros/forms.html' import form_buttons %}
+{% from 'macros/icons.html' import render_icon %}
 {% from 'macros/misc.html' import render_notification, render_tag %}
 {% set title = 'Style Guide' %}
 
+
 {% block head %}
   <style>
-    code {
-      background-color: rgba(0, 0, 0, 0.7);
+    #header,
+    #page-grid-sidebar {
+      display: none;
+    }
+
+    .example {
+      border: rgba(0, 0, 0, 0.5) solid 1px;
       border-radius: 0.2rem;
+    }
+
+    .example-result {
+      padding: 2rem;
+    }
+
+    code {
+      background-color: rgba(0, 0, 0, 0.75);
       color: #ffffff;
+      font-size: 0.75rem; /* 12px / 16px */
+    }
+
+    code.block {
+      display: block;
+      line-height: 1.5;
+      padding: 1rem 2rem;
+      white-space: pre;
+    }
+
+    code:not(.block) {
+      border-radius: 0.2rem;
       padding: 0.05rem 0.3rem;
     }
   </style>
 {%- endblock %}
 
+
+{% macro render_code_block() %}
+  <code class="block">
+  {%- filter forceescape -%}
+    {{ caller() }}
+  {%- endfilter -%}
+  </code>
+{% endmacro %}
+
+
 {% block body %}
 
   <h1>{{ title }}</h1>
 
-  <ul>
-    <li><a href="#notifications">Notifications</a></li>
-    <li><a href="#tabs">Tabs</a></li>
-    <li><a href="#tables">Tables</a></li>
-    <li><a href="#tags">Tags</a></li>
-  </ul>
-
+  <ol class="tabs">
+    <li><a class="tabs-tab" href="#notifications">Notifications</a></li>
+    <li><a class="tabs-tab" href="#tabs">Tabs</a></li>
+    <li><a class="tabs-tab" href="#tables">Tables</a></li>
+    <li><a class="tabs-tab" href="#buttons">Buttons</a></li>
+    <li><a class="tabs-tab" href="#dropdowns">Dropdown Menus</a></li>
+    <li><a class="tabs-tab" href="#tags">Tags</a></li>
+    <li><a class="tabs-tab" href="#forms">Forms</a></li>
+    <li><a class="tabs-tab" href="#icons">Icons</a></li>
+  </ol>
 
   <h2 id="notifications">Notifications</h2>
-{{ render_notification('', None, 'Without category and icon.') }}
-{{ render_notification('info', 'info', 'Just FYI.') }}
-{{ render_notification('danger', 'error', '<p>This did not end well. :(</p><p>To explain the problem, debug information like stack trace could follow here.</p>', text_is_safe=true) }}
-{{ render_notification('success', 'success', 'The action was <strong>successful</strong>.', text_is_safe=true) }}
-
+{%- include 'style_guide/sections/_notifications.html' %}
 
   <h2 id="tabs">Tabs</h2>
-
-  <p>Left-aligned:</p>
-  <ol class="tabs">
-    <li><a href="#">Tab 1</a></li>
-    <li><span class="current">Tab 2</span></li>
-    <li><a href="#">Tab 3</a></li>
-    <li><a href="#">Tab 4</a></li>
-  </ol>
-
-  <p>Centered:</p>
-  <ol class="tabs tabs--centered">
-    <li><a href="#">Tab 1</a></li>
-    <li><span class="current">Tab 2</span></li>
-    <li><a href="#">Tab 3</a></li>
-    <li><a href="#">Tab 4</a></li>
-  </ol>
-
+{%- include 'style_guide/sections/_tabs.html' %}
 
   <h2 id="tables">Tables</h2>
+{%- include 'style_guide/sections/_tables.html' %}
 
-  <p>With class <code>index</code>:</p>
-  <table class="index">
-    <thead>
-      <tr>
-        <th>One</th>
-        <th>Two</th>
-        <th>Three</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>a1</td>
-        <td>a2</td>
-        <td>a3</td>
-      </tr>
-      <tr>
-        <td>b1</td>
-        <td>b2</td>
-        <td>b3</td>
-      </tr>
-      <tr>
-        <td>c1</td>
-        <td>c2</td>
-        <td>c3</td>
-      </tr>
-    </tbody>
-  </table>
+  <h2 id="buttons">Buttons</h2>
+{%- include 'style_guide/sections/_buttons.html' %}
 
-  <p>With classes <code>index wide</code>:</p>
-  <table class="index wide">
-    <thead>
-      <tr>
-        <th>One</th>
-        <th>Two</th>
-        <th>Three</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>a1</td>
-        <td>a2</td>
-        <td>a3</td>
-      </tr>
-      <tr>
-        <td>b1</td>
-        <td>b2</td>
-        <td>b3</td>
-      </tr>
-      <tr>
-        <td>c1</td>
-        <td>c2</td>
-        <td>c3</td>
-      </tr>
-    </tbody>
-  </table>
-
+  <h2 id="dropdowns">Dropdown Menus</h2>
+{%- include 'style_guide/sections/_buttons.html' %}
 
   <h2 id="tags">Tags</h2>
-  <p>Just a {{ render_tag('tag') }} to attach to things or to represent state.</p>
+{%- include 'style_guide/sections/_tags.html' %}
+
+  <h2 id="forms">Forms</h2>
+{%- include 'style_guide/sections/_forms.html' %}
+
+  <h2 id="icons">Icons</h2>
+{%- include 'style_guide/sections/_icons.html' %}
 
 {%- endblock %}

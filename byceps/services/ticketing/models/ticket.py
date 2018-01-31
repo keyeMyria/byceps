@@ -2,7 +2,7 @@
 byceps.services.ticketing.models.ticket
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -14,14 +14,18 @@ from ....database import BaseQuery, db, generate_uuid
 from ....typing import PartyID, UserID
 from ....util.instances import ReprBuilder
 
-from ...seating.models.category import Category, CategoryID
 from ...seating.models.seat import Seat
+from ...shop.order.models.order import OrderNumber
 from ...user.models.user import User
 
+from .category import Category, CategoryID
 from .ticket_bundle import TicketBundle
 
 
 TicketID = NewType('TicketID', UUID)
+
+
+TicketCode = NewType('TicketCode', str)
 
 
 class TicketQuery(BaseQuery):
@@ -44,12 +48,14 @@ class Ticket(db.Model):
 
     id = db.Column(db.Uuid, default=generate_uuid, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    code = db.Column(db.Unicode(5), unique=True, index=True, nullable=False)
     bundle_id = db.Column(db.Uuid, db.ForeignKey('ticket_bundles.id'), index=True, nullable=True)
     bundle = db.relationship(TicketBundle, backref='tickets')
-    category_id = db.Column(db.Uuid, db.ForeignKey('seat_categories.id'), index=True, nullable=False)
+    category_id = db.Column(db.Uuid, db.ForeignKey('ticket_categories.id'), index=True, nullable=False)
     category = db.relationship(Category)
     owned_by_id = db.Column(db.Uuid, db.ForeignKey('users.id'), index=True, nullable=False)
     owned_by = db.relationship(User, foreign_keys=[owned_by_id])
+    order_number = db.Column(db.Unicode(13), db.ForeignKey('shop_orders.order_number'), index=True, nullable=True)
     seat_managed_by_id = db.Column(db.Uuid, db.ForeignKey('users.id'), index=True, nullable=True)
     seat_managed_by = db.relationship(User, foreign_keys=[seat_managed_by_id])
     user_managed_by_id = db.Column(db.Uuid, db.ForeignKey('users.id'), index=True, nullable=True)
@@ -58,14 +64,28 @@ class Ticket(db.Model):
     occupied_seat = db.relationship(Seat, backref=db.backref('occupied_by_ticket', uselist=False))
     used_by_id = db.Column(db.Uuid, db.ForeignKey('users.id'), index=True, nullable=True)
     used_by = db.relationship(User, foreign_keys=[used_by_id])
+    revoked = db.Column(db.Boolean, default=False, nullable=False)
+    user_checked_in = db.Column(db.Boolean, default=False, nullable=False)
 
-    def __init__(self, category_id: CategoryID, owned_by_id: UserID, *,
-                 bundle: Optional[TicketBundle]=None) -> None:
-        if bundle is not None:
-            self.bundle = bundle
-
+    def __init__(self, code: TicketCode, category_id: CategoryID,
+                 owned_by_id: UserID, *, bundle: Optional[TicketBundle]=None,
+                 order_number: Optional[OrderNumber]=None) -> None:
+        self.code = code
+        self.bundle = bundle
         self.category_id = category_id
         self.owned_by_id = owned_by_id
+        self.order_number = order_number
+
+    @property
+    def belongs_to_bundle(self) -> bool:
+        """Return `True` if this ticket is part of a ticket bundle, or
+        `False` if it is stand-alone.
+        """
+        return self.bundle_id is not None
+
+    def is_owned_by(self, user_id: UserID):
+        """Return `True` if the user owns this ticket."""
+        return self.owned_by_id == user_id
 
     def get_seat_manager(self) -> User:
         """Return the user that may choose the seat for this ticket."""
@@ -84,12 +104,12 @@ class Ticket(db.Model):
 
     def is_seat_managed_by(self, user_id: UserID) -> bool:
         """Return `True` if the user may choose the seat for this ticket."""
-        return ((self.seat_managed_by_id is None) and (self.owned_by_id == user_id)) or \
+        return ((self.seat_managed_by_id is None) and self.is_owned_by(user_id)) or \
             (self.seat_managed_by_id == user_id)
 
     def is_user_managed_by(self, user_id: UserID) -> bool:
         """Return `True` if the user may choose the user of this ticket."""
-        return ((self.user_managed_by_id is None) and (self.owned_by_id == user_id)) or \
+        return ((self.user_managed_by_id is None) and self.is_owned_by(user_id)) or \
             (self.user_managed_by_id == user_id)
 
     def __repr__(self) -> str:

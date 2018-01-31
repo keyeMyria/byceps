@@ -2,7 +2,7 @@
 byceps.services.party.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -14,9 +14,10 @@ from flask_sqlalchemy import Pagination
 from ...database import db
 from ...typing import BrandID, PartyID
 
-from ..brand.models import Brand
+from ..brand.models.brand import Brand
 
-from .models import Party, PartyTuple
+from .models.party import Party, PartyTuple
+from .models.setting import Setting, SettingTuple
 
 
 class UnknownPartyId(Exception):
@@ -76,9 +77,15 @@ def get_all_parties_with_brands() -> List[Party]:
         .all()
 
 
-def get_active_parties() -> List[PartyTuple]:
+def get_active_parties(brand_id: Optional[BrandID]=None) -> List[PartyTuple]:
     """Return active (i.e. non-archived) parties."""
-    parties = Party.query \
+    query = Party.query
+
+    if brand_id is not None:
+        query = query \
+            .filter_by(brand_id=brand_id)
+
+    parties = query \
         .filter_by(is_archived=False) \
         .order_by(Party.starts_at.desc()) \
         .all()
@@ -128,3 +135,15 @@ def get_party_count_by_brand_id() -> Dict[BrandID, int]:
         .outerjoin(Party) \
         .group_by(Brand.id) \
         .all())
+
+
+def find_setting(party_id: PartyID, name: str) -> Optional[SettingTuple]:
+    """Return the setting for that party and with that name, or `None`
+    if not found.
+    """
+    setting = Setting.query.get((party_id, name))
+
+    if setting is None:
+        return None
+
+    return setting.to_tuple()

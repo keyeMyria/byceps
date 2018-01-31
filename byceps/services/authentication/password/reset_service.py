@@ -2,13 +2,14 @@
 byceps.services.authentication.password.reset_service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from flask import url_for
 
 from ....database import db
+from ....typing import BrandID
 
 from ...email import service as email_service
 from ...user.models.user import User
@@ -18,7 +19,7 @@ from ...verification_token import service as verification_token_service
 from . import service as password_service
 
 
-def prepare_password_reset(user: User) -> None:
+def prepare_password_reset(user: User, brand_id: BrandID) -> None:
     """Create a verification token for password reset and email it to
     the user's address.
     """
@@ -28,10 +29,13 @@ def prepare_password_reset(user: User) -> None:
     db.session.add(verification_token)
     db.session.commit()
 
-    _send_password_reset_email(user, verification_token)
+    _send_password_reset_email(user, verification_token, brand_id)
 
 
-def _send_password_reset_email(user: User, verification_token: Token) -> None:
+def _send_password_reset_email(user: User, verification_token: Token,
+                               brand_id: BrandID) -> None:
+    sender_address = email_service.get_sender_address_for_brand(brand_id)
+
     confirmation_url = url_for('authentication.password_reset_form',
                                token=verification_token.token,
                                _external=True)
@@ -44,7 +48,7 @@ def _send_password_reset_email(user: User, verification_token: Token) -> None:
     ).format(user, confirmation_url)
     recipients = [user.email_address]
 
-    email_service.send_email(recipients, subject, body)
+    email_service.enqueue_email(sender_address, recipients, subject, body)
 
 
 def reset_password(verification_token: Token, password: str) -> None:
@@ -54,4 +58,4 @@ def reset_password(verification_token: Token, password: str) -> None:
     db.session.delete(verification_token)
     db.session.commit()
 
-    password_service.update_password_hash(user.id, password)
+    password_service.update_password_hash(user.id, password, user.id)

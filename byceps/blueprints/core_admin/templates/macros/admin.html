@@ -1,105 +1,17 @@
 {% from 'macros/icons.html' import render_icon %}
-{% from 'macros/party_admin.html' import render_party_admin_link %}
-{% from 'macros/brand_admin.html' import render_brand_admin_link %}
-
-
-{% macro render_brand_head(brand, all_brands) %}
-  <div class="head-brand">
-    Marken
-    {{ '/'|dim }}
-    <div>
-      <div class="dropdown">
-        <div class="dropdown-toggle"><strong class="big">{{ brand.title }}</strong> {{ render_icon('caret-down') }}</div>
-        <ol>
-          {%- for brand in all_brands|sort(attribute='title') %}
-          <li>{{ render_brand_admin_link(brand) }}</li>
-          {%- endfor %}
-        </ol>
-      </div>
-    </div>
-  </div>
-{% endmacro %}
-
-
-{% macro render_party_head(party, all_brands) %}
-  <div class="head-party">
-    <div class="dropdown">
-      <div class="dropdown-toggle"><strong>{{ party.brand.title }}</strong> {{ render_icon('caret-down') }}</div>
-      <ol>
-        {%- for brand in all_brands|sort(attribute='title') %}
-        <li>{{ render_brand_admin_link(brand) }}</li>
-        {%- endfor %}
-      </ol>
-    </div>
-    {{ '/'|dim }}
-    <div>
-      <div class="dropdown">
-        <div class="dropdown-toggle"><strong class="big">{{ party.title }}</strong> {{ render_icon('caret-down') }}</div>
-        <ol>
-          {%- for party in party.brand.parties|sort(attribute='starts_at', reverse=True) %}
-          <li>{{ render_party_admin_link(party, dim_archived=True) }}</li>
-          {%- endfor %}
-        </ol>
-      </div>
-    </div>
-  </div>
-{% endmacro %}
 
 
 {% macro render_navigation(navigation, current_page) %}
   <nav class="main">
     <ol>
       {%- for item in navigation.get_items(g.current_user) %}
-      <li{% if (item.id is not none) and (item.id is is_current_page(current_page)) %} class="current"{% endif %}><a href="{{ item.endpoint }}" title="{{ item.label }}">
-        {%- if item.icon %}{{ render_icon(item.icon) }} {% endif -%}
-        {{- item.label -}}
+      <li><a href="{{ item.endpoint }}" title="{{ item.label }}" class="nav-item{% if (item.id is not none) and (item.id is is_current_page(current_page)) %} nav-item--current{% endif %}">
+        {%- if item.icon %}<span class="nav-item-icon">{{ render_icon(item.icon) }}</span>{% endif -%}
+        <span class="nav-item-label">{{- item.label -}}</span>
       </a></li>
       {%- endfor %}
     </ol>
   </nav>
-{% endmacro %}
-
-
-{% macro render_navigation_global(current_page) -%}
-  {%- set navigation = Navigation('global')
-      .add_item(url_for('admin_dashboard.view_global'), 'Dashboard', id='admin_dashboard_global', required_permission=AdminDashboardPermission.view_global, icon='dashboard')
-      .add_item(url_for('user_admin.index'), 'Benutzer', id='user_admin', required_permission=UserPermission.list, icon='users')
-      .add_item(url_for('authorization_admin.role_index'), 'Berechtigungen', id='authorization_admin', required_permission=RolePermission.list, icon='permission')
-      .add_item(url_for('user_badge.index'), 'Abzeichen', id='user_badge', icon='badge')
-      .add_item(url_for('orga_admin.birthdays'), 'Geburtstage', id='orga_admin.birthdays', required_permission=OrgaBirthdayPermission.list, icon='birthday')
-      .add_item(url_for('brand_admin.index'), 'Marken', id='brand_admin', required_permission=BrandPermission.view, icon='brand')
-  -%}
-{{ render_navigation(navigation, current_page) }}
-{% endmacro %}
-
-
-{% macro render_navigation_brand(brand, current_page) -%}
-  {%- set navigation = Navigation('Marke')
-      .add_item(url_for('admin_dashboard.view_brand', brand_id=brand.id), 'Dashboard', id='admin_dashboard_brand', required_permission=AdminDashboardPermission.view_brand, icon='dashboard')
-      .add_item(url_for('party_admin.index_for_brand', brand_id=brand.id), 'Partys', id='party_admin', required_permission=PartyPermission.list, icon='date')
-      .add_item(url_for('orga_admin.persons_for_brand', brand_id=brand.id), 'Organisatoren', id='orga_admin', required_permission=OrgaDetailPermission.view, icon='users')
-      .add_item(url_for('news_admin.index_for_brand', brand_id=brand.id), 'News', id='news_admin', required_permission=NewsItemPermission.list, icon='news')
-      .add_item(url_for('newsletter_admin.view_subscriptions', brand_id=brand.id), 'Newsletter', id='newsletter_admin', required_permission=NewsletterPermission.view_subscriptions, icon='email')
-      .add_item(url_for('terms_admin.index_for_brand', brand_id=brand.id), 'AGB', id='terms_admin', required_permission=TermsPermission.list, icon='legal')
-      .add_item(url_for('board_admin.index_for_brand', brand_id=brand.id), 'Forum', id='board_admin', required_permission=BoardCategoryPermission.list, icon='board')
-  -%}
-{{ render_navigation(navigation, current_page) }}
-{% endmacro %}
-
-
-{% macro render_navigation_party(party, current_page) -%}
-  {%- set navigation = Navigation('Party')
-      .add_item(url_for('admin_dashboard.view_party', party_id=party.id), 'Dashboard', id='admin_dashboard_party', required_permission=AdminDashboardPermission.view_party, icon='dashboard')
-      .add_item(url_for('snippet_admin.index_for_party', party_id=party.id), 'Snippets', id='snippet_admin', required_permission=SnippetPermission.list, icon='snippet')
-      .add_item(url_for('seating_admin.index_for_party', party_id=party.id), 'Sitzpläne', id='seating_admin', required_permission=SeatingPermission.view, icon='seating-area')
-      .add_item(url_for('shop_article_admin.index_for_party', party_id=party.id), 'Shop-Artikel', id='shop_article_admin', required_permission=ShopArticlePermission.list, icon='shopping-cart')
-      .add_item(url_for('shop_order_admin.index_for_party', party_id=party.id), 'Shop-Bestellungen', id='shop_order_admin', required_permission=ShopOrderPermission.list, icon='payment')
-      .add_item(url_for('ticketing_admin.index_for_party', party_id=party.id), 'Tickets', id='ticketing_admin', required_permission=TicketingPermission.view, icon='ticket')
-      .add_item(url_for('orga_team_admin.teams_for_party', party_id=party.id), 'Orga-Teams', id='orga_admin.teams', required_permission=OrgaTeamPermission.list, icon='users')
-      .add_item(url_for('orga_presence.view', party_id=party.id), 'Orga-Anwesenheit', id='orga_presence', required_permission=OrgaPresencePermission.list, icon='date-okay')
-      .add_item(url_for('tourney_admin.category_index_for_party', party_id=party.id), 'Turniere', id='tourney_admin', required_permission=TourneyCategoryPermission.list, icon='trophy')
-  -%}
-{{ render_navigation(navigation, current_page) }}
 {% endmacro %}
 
 

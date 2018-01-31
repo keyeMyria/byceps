@@ -2,11 +2,11 @@
 byceps.services.authorization.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
-from typing import Dict, FrozenSet, Optional, Sequence, Set
+from typing import Dict, FrozenSet, List, Optional, Sequence, Set
 
 from ...database import db
 from ...typing import UserID
@@ -177,16 +177,25 @@ def get_permissions_by_roles_for_user_with_titles(user_id: UserID) \
 
     role_ids = {r.id for r in roles}
 
-    permissions = Permission.query \
-        .options(
-            db.undefer('title'),
-            db.joinedload('role_permissions').joinedload('role')
-        ) \
-        .join(RolePermission) \
-        .join(Role) \
-        .filter(Role.id.in_(role_ids)) \
-        .all()
+    if role_ids:
+        permissions = Permission.query \
+            .options(
+                db.undefer('title'),
+                db.joinedload('role_permissions').joinedload('role')
+            ) \
+            .join(RolePermission) \
+            .join(Role) \
+            .filter(Role.id.in_(role_ids)) \
+            .all()
+    else:
+        permissions = []
 
+    return _index_permissions_by_role(permissions, roles)
+
+
+def _index_permissions_by_role(permissions: List[Permission],
+                               roles: List[Role]) \
+                               -> Dict[Role, Set[Permission]]:
     permissions_by_role = {r: set() for r in roles}  # type: Dict[Role, Set[Permission]]
 
     for permission in permissions:

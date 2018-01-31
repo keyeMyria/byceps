@@ -2,7 +2,7 @@
 byceps.services.user_badge.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -17,13 +17,13 @@ from .models.awarding import BadgeAwarding, BadgeAwardingTuple, \
 from .models.badge import Badge, BadgeID, BadgeTuple
 
 
-def create_badge(label: str, image_filename: str, *,
+def create_badge(slug: str, label: str, image_filename: str, *,
                  brand_id: Optional[BrandID]=None,
                  description: Optional[str]=None,
-                 is_featured: bool=False) -> BadgeTuple:
+                 featured: bool=False) -> BadgeTuple:
     """Introduce a new badge."""
-    badge = Badge(label, image_filename, brand_id=brand_id,
-                  description=description, is_featured=is_featured)
+    badge = Badge(slug, label, image_filename, brand_id=brand_id,
+                  description=description, featured=featured)
 
     db.session.add(badge)
     db.session.commit()
@@ -34,6 +34,18 @@ def create_badge(label: str, image_filename: str, *,
 def find_badge(badge_id: BadgeID) -> Optional[BadgeTuple]:
     """Return the badge with that id, or `None` if not found."""
     badge = Badge.query.get(badge_id)
+
+    if badge is None:
+        return None
+
+    return badge.to_tuple()
+
+
+def find_badge_by_slug(slug: str) -> Optional[BadgeTuple]:
+    """Return the badge with that slug, or `None` if not found."""
+    badge = Badge.query \
+        .filter_by(slug=slug) \
+        .one_or_none()
 
     if badge is None:
         return None
@@ -54,7 +66,7 @@ def get_badges(badge_ids: Set[BadgeID], *, featured_only: bool=False
         .filter(Badge.id.in_(badge_ids))
 
     if featured_only:
-        query = query.filter_by(is_featured=True)
+        query = query.filter_by(featured=True)
 
     badges = query.all()
 
@@ -78,9 +90,12 @@ def get_badges_for_user(user_id: UserID) -> Dict[BadgeTuple, int]:
 
     badge_ids = set(badge_ids_with_awarding_quantity.keys())
 
-    badges = Badge.query \
-        .filter(Badge.id.in_(badge_ids)) \
-        .all()
+    if badge_ids:
+        badges = Badge.query \
+            .filter(Badge.id.in_(badge_ids)) \
+            .all()
+    else:
+        badges = []
 
     badges_with_awarding_quantity = {}
     for badge in badges:

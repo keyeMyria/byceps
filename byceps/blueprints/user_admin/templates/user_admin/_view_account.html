@@ -1,0 +1,80 @@
+{%- from 'macros/datetime.html' import render_datetime %}
+{%- from 'macros/icons.html' import render_icon %}
+{%- from 'macros/misc.html' import render_tag %}
+
+  {%- if g.current_user.has_any_permission(UserPermission.administrate, UserPermission.set_password) %}
+  <div style="float: right; margin-left: 40px;">
+    <div class="dropdown left">
+      <button class="dropdown-toggle button">Aktionen {{ render_icon('caret-down') }}</button>
+      <ol>
+        {%- if g.current_user.has_permission(UserPermission.administrate) %}
+          {%- if not user.enabled %}
+        <li><a data-action="user-enable" href="{{ url_for('.set_enabled_flag', user_id=user.id) }}">{{ render_icon('enabled') }} aktivieren</a></li>
+          {%- else %}
+        <li><a data-action="user-disable" href="{{ url_for('.unset_enabled_flag', user_id=user.id) }}">{{ render_icon('disabled') }} deaktivieren</a></li>
+          {%- endif %}
+        {%- endif %}
+        {%- if g.current_user.has_permission(UserPermission.set_password) %}
+        <li><a href="{{ url_for('.set_password', user_id=user.id) }}">{{ render_icon('password') }} Passwort ändern</a></li>
+        {%- endif %}
+      </ol>
+    </div>
+  </div>
+  {%- endif %}
+
+  <table class="index">
+    <tr>
+      <th>ID</th>
+      <td>
+        {{ user.id }}
+        <input id="user-id-field" value="{{ user.id }}" style="position: fixed; top: -1000px;" readonly>
+        <button id="user-id-copy-trigger" data-field-id="user-id-field" class="button button--icon-only" title="In die Zwischenablage kopieren">{{ render_icon('clipboard') }}</button>
+      </td>
+    </tr>
+    <tr>
+      <th>Benutzername</th>
+      <td>{{ user.screen_name }}</td>
+    </tr>
+    <tr>
+      <th>Erstellt</th>
+      <td>{{ render_datetime(user.created_at) }}</td>
+    </tr>
+    <tr>
+      <th>E-Mail-Adresse</th>
+      <td>
+        <a href="mailto:{{ user.email_address }}">{{ user.email_address }}</a>
+        {%- if not user.email_address_verified %}
+        {{ render_tag('unbestätigt', class='color-warning') }}
+        {%- endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Aktiviert</th>
+      <td>{{ render_icon('enabled' if user.enabled else 'disabled') }}</td>
+    </tr>
+    <tr>
+      <th>Avatar</th>
+      <td>{{ render_icon('enabled' if user.avatar else 'disabled') }}</td>
+    </tr>
+    <tr>
+      <th>Legacy-ID</th>
+      <td>{{ user.legacy_id|fallback }}</td>
+    </tr>
+    <tr>
+      <th>Orga-Teams</th>
+      <td>
+        {%- if orga_team_memberships %}
+        <ol>
+          {%- for membership in orga_team_memberships|sort(attribute='orga_team.party.starts_at', reverse=True) %}
+          <li>
+            {{- membership.orga_team.party.title }} – {{ membership.orga_team.title }}
+            {%- if membership.duties %} ({{ membership.duties }}){% endif -%}
+          </li>
+          {%- endfor %}
+        </ol>
+        {%- else %}
+          {{- 'keine'|dim -}}
+        {%- endif %}
+      </td>
+    </tr>
+  </table>

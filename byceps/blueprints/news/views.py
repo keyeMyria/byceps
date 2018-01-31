@@ -2,7 +2,7 @@
 byceps.blueprints.news.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -10,7 +10,7 @@ from flask import abort, current_app, g
 
 from ...services.news import service as news_service
 from ...util.framework.blueprint import create_blueprint
-from ...util.templating import templated
+from ...util.framework.templating import templated
 
 
 blueprint = create_blueprint('news', __name__)
@@ -21,10 +21,10 @@ blueprint = create_blueprint('news', __name__)
 @templated
 def index(page):
     """Show a page of news items."""
-    brand_id = g.party.brand_id
     items_per_page = _get_items_per_page_value()
 
-    items = news_service.get_items_paginated(brand_id, page, items_per_page)
+    items = news_service.get_items_paginated(g.brand_id, page, items_per_page,
+                                             published_only=True)
 
     return {
         'items': items,
@@ -36,9 +36,7 @@ def index(page):
 @templated
 def view(slug):
     """Show a single news item."""
-    brand_id = g.party.brand_id
-
-    item = news_service.find_item_by_slug(brand_id, slug)
+    item = news_service.find_item_by_slug(g.brand_id, slug)
 
     if item is None:
         abort(404)

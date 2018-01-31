@@ -2,7 +2,7 @@
 byceps.services.seating.area_service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -38,7 +38,6 @@ def find_area_for_party_by_slug(party_id: PartyID, slug: str) -> Optional[Area]:
     return Area.query \
         .for_party_id(party_id) \
         .filter_by(slug=slug) \
-        .options(db.joinedload('seats').joinedload('category')) \
         .first()
 
 

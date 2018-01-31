@@ -17,10 +17,21 @@ body {
 
 html {
   font-size: 16px;
+  line-height: 1.15;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   font-size: 1rem; /* 16px */
+  line-height: 1.5;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: sans-serif;
 }
 
 figcaption,
@@ -83,6 +94,48 @@ img {
 }
 
 
+/* layout */
+
+.container {
+  margin: 0 auto;
+}
+
+
+/* grid */
+
+.row {
+  align-items: baseline;
+  display: flex;
+  margin: -1rem 0 0 -1rem;
+}
+
+.row--space-around {
+  justify-content: space-around;
+}
+
+.row--space-between {
+  justify-content: space-between;
+}
+
+.row--wrap {
+  flex-wrap: wrap;
+}
+
+.column-auto {
+  padding: 1rem 0 0 1rem;
+}
+
+
+/* links */
+
+a.disguised {
+  color: currentColor;
+}
+a.disguised:not(:hover) {
+  text-decoration: none;
+}
+
+
 /* icons */
 
 .icon {
@@ -108,6 +161,7 @@ span[title] .icon {
 }
 .block-with-icon-body {
   flex: 1;
+  text-align: left;
 }
 
 
@@ -138,7 +192,9 @@ span[title] .icon {
 /* tabs */
 
 .tabs {
-  border-bottom: #dddddd solid 1px;
+  border-color: #dddddd;
+  border-style: solid;
+  border-width: 0 0 1px 0;
   display: flex;
   margin-bottom: 2rem;
 }
@@ -147,25 +203,35 @@ span[title] .icon {
   justify-content: center;
 }
 
-.tabs a,
-.tabs .current {
-  border-bottom: transparent solid 1px;
-  display: block;
+.tabs-tab {
+  border-color: transparent;
+  border-style: solid;
+  border-width: 0 0 1px 0;
   color: #888888;
+  cursor: pointer;
+  display: block;
   flex: 1 0 auto;
   margin-bottom: -1px;
   padding: 0.5rem 1rem;
   text-decoration: none;
+  -ms-user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.tabs a:hover,
-.tabs .current {
-  border-bottom-color: #333333;
+.tabs-tab:hover,
+.tabs-tab--current {
+  border-color: #333333;
   color: currentColor;
 }
 
-.tabs a:hover {
+.tabs-tab:hover {
   background-color: #e8e8e8;
+}
+
+.tabs-tab--current {
+  cursor: default;
 }
 
 
@@ -243,7 +309,7 @@ fieldset li {
   padding: 0.2rem 0;
 }
 
-label,
+form label,
 fieldset .label {
   display: inline-block;
   font-weight: bold;
@@ -288,7 +354,7 @@ fieldset .supplement {
 }
 
 @media (min-width: 45rem) { /* 720px / 16px */
-  label,
+  form label,
   fieldset .label {
     width: 22%;
   }
@@ -311,11 +377,6 @@ fieldset.buttons {
   text-align: center;
 }
 
-fieldset.buttons button {
-  font-weight: bold;
-  padding: 0.25em 0.75em;
-}
-
 form li.error {
   background-color: #ff9999;
   border: #ff1a1a solid 1px;
@@ -332,18 +393,42 @@ form li.error .errors li span {
   font-style: italic;
 }
 
+form.single-row {
+  display: flex;
+  margin-left: -0.25rem;
+}
 
-/* buttons */
+form.single-row .button,
+form.single-row input {
+  font-size: 0.875rem; /* 14px / 16px */
+  margin-left: 0.25rem;
+  padding-bottom: 0.2rem;
+  padding-top: 0.2rem;
+}
+
+form.unobtrusive .button,
+form.unobtrusive input {
+  opacity: 0.7;
+}
+
+form.unobtrusive:hover .button,
+form.unobtrusive:hover input,
+form.unobtrusive input:focus ~ .button {
+  opacity: 1;
+}
+
+
+/* button rows */
 
 .button-row {
   display: flex;
   flex-wrap: wrap;
-  margin: 1.5rem 0 1.5rem -8px;
+  margin: 1.5rem 0 1.5rem -0.5rem;
 }
 
 .button-row--compact {
   margin-bottom: 0;
-  margin-top: -8px;
+  margin-top: -0.5rem;
 }
 
 .button-row--center {
@@ -354,10 +439,14 @@ form li.error .errors li span {
 }
 
 .button-row > * {
-  margin: 8px 0 0 8px;
+  margin: 0.5rem 0 0 0.5rem;
 }
 
+
+/* buttons */
+
 .button {
+  -moz-appearance: none;
   background-color: #eeeeee;
   border-color: #cccccc;
   border-style: solid;
@@ -366,13 +455,24 @@ form li.error .errors li span {
   color: currentColor;
   cursor: pointer;
   display: inline-block;
-  padding: 0.4em 0.6em;
+  font-size: 1rem; /* 16px */
+  font-weight: normal;
+  line-height: 1.3;
+  padding: 0.375rem 0.75rem;
+  text-align: center;
   text-decoration: none;
+  -ms-user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  vertical-align: middle;
   white-space: nowrap;
 }
 .button--compact {
+  font-size: 0.875rem; /* 14px / 16px */
   padding: 0;
 }
+button.button[disabled],
 .button--disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -381,14 +481,32 @@ form li.error .errors li span {
   padding: 0 0.15rem;
 }
 .button--inline {
+  font-size: 0.875rem; /* 14px / 16px */
   padding: 0 0.3rem;
 }
+.button--outlined {
+  background-color: transparent;
+}
 .button:hover {
-  background-color: #e8e8e8;
-  border-color: #999999;
+  box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.2);
 }
 .button:active {
   box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.button--clear,
+.button--clear:active,
+.button--clear:hover {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.button--clear:hover {
+  border-color: #cccccc;
+}
+
+.button--wrapping {
+  white-space: normal;
 }
 
 
@@ -497,7 +615,7 @@ nav.pagination li.current {
   font-size: 0.625rem; /* 10px / 16px */
   font-weight: bold;
   line-height: 1.3;
-  padding: 0 0.4em;
+  padding: 0.1rem 0.3rem;
   text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.15);
   vertical-align: middle;
 }
@@ -587,23 +705,78 @@ table.user-badges-list td {
 
 /* colors */
 
-.color-danger {
+.button.color-primary {
+  background-color: #99ddbb;
+  border-color: #66aa88;
+}
+
+.button.color-danger,
+.notification.color-danger {
   background-color: #ff9999;
-  border-color: #ff1a1a;
+  border-color: #ff2222;
+}
+
+.button.color-info,
+.notification.color-info {
+  background-color: #88ccff;
+  border-color: #1199ff;
+}
+
+.button.color-success,
+.notification.color-success {
+  background-color: #99ee88;
+  border-color: #55cc00;
+}
+
+.button.color-warning,
+.notification.color-warning {
+  background-color: #ffe777;
+  border-color: #ffcc11;
 }
 
 .tag.color-danger {
-  background-color: #ff1a1a;
+  background-color: #ff2222;
 }
 
-.color-info {
-  background-color: #99ccee;
-  border-color: #66aacc;
+.tag.color-info {
+  background-color: #1199ff;
 }
 
-.color-success {
-  background-color: #88ee88;
-  border-color: #1fd81f;
+.tag.color-success {
+  background-color: #55cc00;
+}
+
+.tag.color-warning {
+  background-color: #ffcc11;
+}
+
+
+/* animation */
+
+@-webkit-keyframes spin {
+  from {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+@keyframes spin {
+  from {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+
+.spinning {
+  -webkit-animation: spin 500ms infinite linear;
+  animation: spin 500ms infinite linear;
 }
 
 
@@ -626,7 +799,6 @@ img {
 }
 
 .hyphenate {
-  -moz-hyphens: auto;
   -webkit-hyphens: auto;
   hyphens: auto;
 }

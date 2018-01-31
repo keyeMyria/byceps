@@ -2,7 +2,7 @@
 byceps.services.shop.article.models.article
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -18,7 +18,7 @@ from .....database import BaseQuery, db, generate_uuid
 from .....typing import PartyID
 from .....util.instances import ReprBuilder
 
-from ....party.models import Party
+from ....party.models.party import Party
 
 
 ArticleID = NewType('ArticleID', UUID)

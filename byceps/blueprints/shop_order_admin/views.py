@@ -2,24 +2,22 @@
 byceps.blueprints.shop_order_admin.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
-from datetime import datetime
-
-from flask import abort, current_app, g, render_template, request, Response
+from flask import abort, g, request, Response
 
 from ...services.party import service as party_service
-from ...services.shop.order.models.order import PaymentMethod, PaymentState
+from ...services.shop.order.models.payment import PaymentMethod, PaymentState
 from ...services.shop.order import service as order_service
-from ...services.shop.order import action_service as order_action_service
+from ...services.shop.order.export import service as order_export_service
 from ...services.shop.sequence import service as sequence_service
+from ...services.ticketing import ticket_service
 from ...services.user import service as user_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_success
-from ...util.money import to_two_places
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import redirect_to, respond_no_content
 
 from ..authorization.decorators import permission_required
@@ -27,28 +25,15 @@ from ..authorization.registry import permission_registry
 from ..shop_order.signals import order_canceled, order_paid
 
 from .authorization import ShopOrderPermission
-from .forms import CancelForm
+from .forms import CancelForm, MarkAsPaidForm
 from .models import OrderStateFilter
+from . import service
 
 
 blueprint = create_blueprint('shop_order_admin', __name__)
 
 
 permission_registry.register_enum(ShopOrderPermission)
-
-
-# -------------------------------------------------------------------- #
-# hooks
-
-
-@order_paid.connect
-def execute_order_actions(sender, *, order_id=None):
-    """Execute relevant actions for order."""
-    order_action_service.execute_order_actions(order_id)
-
-
-# -------------------------------------------------------------------- #
-# view functions
 
 
 @blueprint.route('/parties/<party_id>', defaults={'page': 1})
@@ -62,6 +47,8 @@ def index_for_party(party_id, page):
     order_number_prefix = sequence_service.get_order_number_prefix(party.id)
 
     per_page = request.args.get('per_page', type=int, default=15)
+
+    search_term = request.args.get('search_term', default='').strip()
 
     only_payment_state = request.args.get('only_payment_state',
                                           type=PaymentState.__getitem__)
@@ -78,26 +65,25 @@ def index_for_party(party_id, page):
 
     orders = order_service \
         .get_orders_for_party_paginated(party.id, page, per_page,
+                                        search_term=search_term,
                                         only_payment_state=only_payment_state,
                                         only_shipped=only_shipped)
 
     # Replace order objects in pagination object with order tuples.
     orders.items = [order.to_tuple() for order in orders.items]
 
-    orderer_ids = {order.placed_by_id for order in orders.items}
-    orderers = user_service.find_users(orderer_ids)
-    orderers_by_id = user_service.index_users_by_id(orderers)
+    orders.items = list(service.extend_order_tuples_with_orderer(orders.items))
 
     return {
         'party': party,
         'order_number_prefix': order_number_prefix,
+        'search_term': search_term,
         'PaymentState': PaymentState,
         'only_payment_state': only_payment_state,
         'only_shipped': only_shipped,
         'OrderStateFilter': OrderStateFilter,
         'order_state_filter': order_state_filter,
         'orders': orders,
-        'orderers_by_id': orderers_by_id,
     }
 
 
@@ -110,95 +96,39 @@ def view(order_id):
     if order is None:
         abort(404)
 
-    placed_by = order.placed_by
-
-    order_tuple = order.to_tuple()
+    placed_by = user_service.find_user(order.placed_by_id)
 
     party = party_service.find_party(order.party_id)
 
-    articles_by_item_number = {item.article.item_number: item.article
-                               for item in order.items}
+    articles_by_item_number = service.get_articles_by_item_number(order)
 
-    events = _get_events(order)
+    events = service.get_events(order.id)
+
+    tickets = ticket_service.find_tickets_created_by_order(order.order_number)
 
     return {
-        'order': order_tuple,
+        'order': order,
         'placed_by': placed_by,
         'party': party,
         'articles_by_item_number': articles_by_item_number,
         'events': events,
         'PaymentMethod': PaymentMethod,
         'PaymentState': PaymentState,
+        'tickets': tickets,
     }
-
-
-def _get_events(order):
-    events = order_service.get_order_events(order.id)
-
-    user_ids = frozenset(event.data['initiator_id'] for event in events)
-    users = user_service.find_users(user_ids)
-    users_by_id = {str(user.id): user for user in users}
-
-    for event in events:
-        initiator_id = event.data.pop('initiator_id')
-        initiator = users_by_id[initiator_id]
-
-        yield {
-            'event': event.event_type,
-            'occured_at': event.occured_at,
-            'initiator': initiator,
-            'data': event.data,
-        }
 
 
 @blueprint.route('/<uuid:order_id>/export')
 @permission_required(ShopOrderPermission.view)
 def export(order_id):
     """Export the order as an XML document."""
-    order = order_service.find_order_with_details(order_id)
-    if order is None:
+    xml_export = order_export_service.export_order_as_xml(order_id)
+
+    if xml_export is None:
         abort(404)
 
-    order_tuple = order.to_tuple()
-    order_items = [item.to_tuple() for item in order.items]
-
-    now = datetime.now()
-
-    context = {
-        'order': order_tuple,
-        'email_address': order.placed_by.email_address,
-        'order_items': order_items,
-        'now': now,
-        'format_export_amount': _format_export_amount,
-        'format_export_datetime': _format_export_datetime,
-    }
-
-    xml = render_template('shop_order_admin/export.xml', **context)
-
-    return Response(xml, content_type='application/xml; charset=iso-8859-1')
-
-
-def _format_export_amount(amount):
-    """Format the monetary amount as required by the export format
-    specification.
-    """
-    quantized = to_two_places(amount)
-    return '{:.2f}'.format(quantized)
-
-
-def _format_export_datetime(dt):
-    """Format date and time as required by the export format specification."""
-    timezone = current_app.config['SHOP_ORDER_EXPORT_TIMEZONE']
-    localized_dt = timezone.localize(dt)
-
-    date_time, utc_offset = localized_dt.strftime('%Y-%m-%dT%H:%M:%S|%z') \
-                                        .split('|', 1)
-
-    if len(utc_offset) == 5:
-        # Insert colon between hours and minutes.
-        utc_offset = utc_offset[:3] + ':' + utc_offset[3:]
-
-    return date_time + utc_offset
+    return Response(xml_export['content'],
+                    content_type=xml_export['content_type'])
 
 
 @blueprint.route('/<uuid:order_id>/flags/invoiced', methods=['POST'])
@@ -266,20 +196,20 @@ def cancel_form(order_id, erroneous_form=None):
     """Show form to cancel an order."""
     order = _get_order_or_404(order_id)
 
-    party = party_service.find_party(order.party_id)
-
-    cancel_form = erroneous_form if erroneous_form else CancelForm()
-
     if order.is_canceled:
         flash_error(
             'Die Bestellung ist bereits storniert worden; '
             'der Bezahlstatus kann nicht mehr geändert werden.')
         return redirect_to('.view', order_id=order.id)
 
+    party = party_service.find_party(order.party_id)
+
+    form = erroneous_form if erroneous_form else CancelForm()
+
     return {
         'order': order,
         'party': party,
-        'cancel_form': cancel_form,
+        'form': form,
     }
 
 
@@ -318,19 +248,22 @@ def cancel(order_id):
 @blueprint.route('/<uuid:order_id>/mark_as_paid')
 @permission_required(ShopOrderPermission.update)
 @templated
-def mark_as_paid_form(order_id):
+def mark_as_paid_form(order_id, erroneous_form=None):
     """Show form to mark an order as paid."""
     order = _get_order_or_404(order_id)
-
-    party = party_service.find_party(order.party_id)
 
     if order.is_paid:
         flash_error('Die Bestellung ist bereits als bezahlt markiert worden.')
         return redirect_to('.view', order_id=order.id)
 
+    party = party_service.find_party(order.party_id)
+
+    form = erroneous_form if erroneous_form else MarkAsPaidForm()
+
     return {
         'order': order,
         'party': party,
+        'form': form,
     }
 
 
@@ -339,11 +272,17 @@ def mark_as_paid_form(order_id):
 def mark_as_paid(order_id):
     """Set the payment status of a single order to 'paid'."""
     order = _get_order_or_404(order_id)
-    payment_method = PaymentMethod.bank_transfer
+
+    form = MarkAsPaidForm(request.form)
+    if not form.validate():
+        return mark_as_paid_form(order_id, form)
+
+    payment_method = PaymentMethod[form.payment_method.data]
     updated_by_id = g.current_user.id
 
     try:
-        order_service.mark_order_as_paid(order, payment_method, updated_by_id)
+        order_service.mark_order_as_paid(order.id, payment_method,
+                                         updated_by_id)
     except order_service.OrderAlreadyMarkedAsPaid:
         flash_error('Die Bestellung ist bereits als bezahlt markiert worden.')
         return redirect_to('.view', order_id=order.id)

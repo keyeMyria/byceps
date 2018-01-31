@@ -1,7 +1,5 @@
 {% extends 'layout/base.html' %}
-{% from 'macros/seating.html' import render_seating_area_link %}
 {% from 'macros/user_avatar.html' import render_user_avatar_128 %}
-{% from 'macros/user_badge.html' import render_user_badges_list %}
 {% set current_page = 'user.view' %}
 {% set title = '%s - Benutzer'|format(user.screen_name) %}
 
@@ -60,48 +58,13 @@
 
       <div class="user-profile-secondary">
 
-        {%- if current_party_tickets %}
-        <table class="index">
-          <tr>
-            <th>Sitzplatz</th>
-            <td>
-              <ol>
-              {%- for ticket in current_party_tickets %}
-                <li>{{ render_seating_area_link(ticket.occupied_seat.area) if ticket.occupied_seat else 'nicht ausgewählt'|dim }}</li>
-              {%- endfor %}
-              </ol>
-            </td>
-          </tr>
-        </table>
-        {%- endif %}
+{%- include 'user/profile/_current_party_attendance.html' %}
 
         <div class="user-profile-details">
 
-          {# attended parties #}
-          <div class="user-profile-detail-block">
-            <h2>Besuchte Partys</h2>
+{%- include 'user/profile/_attended_parties.html' %}
 
-            {%- if attended_parties %}
-            <ol>
-              {%- for party in attended_parties %}
-              <li>{% if party == g.party %}<strong>{% endif %}{{ party.title }}{% if party == g.party %}</strong>{% endif %}</li>
-              {%- endfor %}
-            </ol>
-            {%- else %}
-              {{- 'keine'|dim -}}
-            {%- endif %}
-          </div>
-          {# /attended parties #}
-
-          {# badges #}
-          {%- if badges_with_awarding_quantity %}
-          <div class="user-profile-detail-block">
-            <h2>Abzeichen</h2>
-
-            {{ render_user_badges_list(badges_with_awarding_quantity) }}
-          </div>
-          {%- endif %}
-          {# /badges #}
+{%- include 'user/profile/_badges.html' %}
 
         </div>
 

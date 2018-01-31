@@ -2,7 +2,7 @@
 byceps.blueprints.user_avatar.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -13,7 +13,7 @@ from ...services.user_avatar import service as avatar_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_success
 from ...util.image.models import ImageType
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import redirect_to, respond_no_content
 
 from .forms import UpdateForm
@@ -62,21 +62,26 @@ def update():
         return update_form(form)
 
     image = request.files.get('image')
-    if not image or not image.filename:
-        abort(400, 'No file to upload has been specified.')
 
-    try:
-        avatar_service.update_avatar_image(user, image.stream,
-                                           allowed_types=ALLOWED_IMAGE_TYPES)
-    except avatar_service.ImageTypeProhibited as e:
-        abort(400, str(e))
-    except FileExistsError:
-        abort(409, 'File already exists, not overwriting.')
+    _update(user, image)
 
     flash_success('Dein Avatarbild wurde aktualisiert.', icon='upload')
     signals.avatar_updated.send(None, user_id=user.id)
 
     return redirect_to('user.view_current')
+
+
+def _update(user, image):
+    if not image or not image.filename:
+        abort(400, 'No file to upload has been specified.')
+
+    try:
+        avatar_service.update_avatar_image(user, image.stream,
+                                           ALLOWED_IMAGE_TYPES)
+    except avatar_service.ImageTypeProhibited as e:
+        abort(400, str(e))
+    except FileExistsError:
+        abort(409, 'File already exists, not overwriting.')
 
 
 @blueprint.route('/me/avatar', methods=['DELETE'])

@@ -2,20 +2,24 @@
 byceps.services.orga_team.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Set
 
 from ...database import db
 from ...typing import PartyID, UserID
 
 from ..orga.models import OrgaFlag
-from ..party.models import Party
+from ..party.models.party import Party
 from ..user.models.user import User
 
 from .models import Membership, MembershipID, OrgaTeam, OrgaTeamID
+
+
+# -------------------------------------------------------------------- #
+# teams
 
 
 def create_team(party_id: PartyID, title: str) -> OrgaTeam:
@@ -53,6 +57,10 @@ def get_teams_for_party_with_memberships(party: Party) -> Sequence[OrgaTeam]:
         .options(db.joinedload('memberships')) \
         .filter_by(party=party) \
         .all()
+
+
+# -------------------------------------------------------------------- #
+# memberships
 
 
 def create_membership(team_id: OrgaTeamID, user_id: UserID, duties: str
@@ -111,6 +119,35 @@ def get_memberships_for_party(party_id: PartyID) -> Sequence[Membership]:
         .all()
 
 
+def get_memberships_for_user(user_id: UserID) -> Sequence[Membership]:
+    """Return all orga team memberships for that user."""
+    return Membership.query \
+        .options(
+            db.joinedload('orga_team').joinedload('party'),
+        ) \
+        .filter_by(user_id=user_id) \
+        .all()
+
+
+# -------------------------------------------------------------------- #
+# organizers
+
+
+def select_orgas_for_party(user_ids: Set[UserID], party_id: PartyID
+                          ) -> Set[UserID]:
+    """Return the IDs of the users that are member of an orga team of
+    that party.
+    """
+    orga_id_rows = db.session \
+        .query(Membership.user_id) \
+        .join(OrgaTeam) \
+        .filter(OrgaTeam.party_id == party_id) \
+        .filter(Membership.user_id.in_(frozenset(user_ids))) \
+        .all()
+
+    return {row[0] for row in orga_id_rows}
+
+
 def get_unassigned_orgas_for_party(party: Party) -> Sequence[User]:
     """Return organizers that are not assigned to a team for the party."""
     assigned_orgas = User.query \
@@ -136,3 +173,19 @@ def get_unassigned_orgas_for_party(party: Party) -> Sequence[User]:
     unassigned_orgas.sort(key=lambda user: user.screen_name.lower())
 
     return unassigned_orgas
+
+
+def is_orga_for_party(user_id: UserID, party_id: PartyID) -> bool:
+    """Return `True` if the user is an organizer (i.e. is member of an
+    organizer team) of that party.
+    """
+    return db.session \
+        .query(
+            db.session
+                .query(Membership)
+                .filter(Membership.user_id == user_id) \
+                .join(OrgaTeam)
+                .filter(OrgaTeam.party_id == party_id) \
+                .exists()
+        ) \
+        .scalar()

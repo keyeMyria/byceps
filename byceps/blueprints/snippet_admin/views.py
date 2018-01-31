@@ -2,11 +2,11 @@
 byceps.blueprints.snippet_admin.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
-from flask import abort, g, render_template, request
+from flask import abort, g, request
 
 from ...services.party import service as party_service
 from ...services.snippet import service as snippet_service
@@ -14,11 +14,12 @@ from ...util.datetime.format import format_datetime_short
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_success
 from ...util.iterables import pairwise
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import redirect_to, respond_no_content
 
 from ..authorization.decorators import permission_required
 from ..authorization.registry import permission_registry
+from ..snippet import signals
 from ..snippet.templating import get_snippet_context
 
 from .authorization import MountpointPermission, SnippetPermission
@@ -53,6 +54,7 @@ def index_for_party(party_id):
 
 @blueprint.route('/versions/<uuid:snippet_version_id>')
 @permission_required(SnippetPermission.view_history)
+@templated
 def view_version(snippet_version_id):
     """Show the snippet with the given id."""
     version = _find_version(snippet_version_id)
@@ -65,16 +67,16 @@ def view_version(snippet_version_id):
             'snippet_title': snippet_context['title'],
             'snippet_head': snippet_context['head'],
             'snippet_body': snippet_context['body'],
-            'error_occured': False,
+            'error_occurred': False,
         }
     except Exception as e:
         context = {
             'version': version,
-            'error_occured': True,
+            'error_occurred': True,
             'error_message': str(e),
         }
 
-    return render_template('snippet_admin/view_version.html', **context)
+    return context
 
 
 @blueprint.route('/snippets/<uuid:snippet_id>/history')
@@ -132,6 +134,8 @@ def create_document(party_id):
                                               image_url_path=image_url_path)
 
     flash_success('Das Dokument "{}" wurde angelegt.', version.snippet.name)
+    signals.snippet_created.send(None, snippet_version_id=version.id)
+
     return redirect_to('.view_version', snippet_version_id=version.id)
 
 
@@ -172,6 +176,8 @@ def update_document(snippet_id):
                                               image_url_path=image_url_path)
 
     flash_success('Das Dokument "{}" wurde aktualisiert.', version.snippet.name)
+    signals.snippet_updated.send(None, snippet_version_id=version.id)
+
     return redirect_to('.view_version', snippet_version_id=version.id)
 
 
@@ -236,6 +242,8 @@ def create_fragment(party_id):
     version = snippet_service.create_fragment(party.id, name, creator.id, body)
 
     flash_success('Das Fragment "{}" wurde angelegt.', version.snippet.name)
+    signals.snippet_created.send(None, snippet_version_id=version.id)
+
     return redirect_to('.view_version', snippet_version_id=version.id)
 
 
@@ -271,6 +279,8 @@ def update_fragment(snippet_id):
     version = snippet_service.update_fragment(snippet, creator.id, body)
 
     flash_success('Das Fragment "{}" wurde aktualisiert.', version.snippet.name)
+    signals.snippet_updated.send(None, snippet_version_id=version.id)
+
     return redirect_to('.view_version', snippet_version_id=version.id)
 
 

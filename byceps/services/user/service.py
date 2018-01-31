@@ -2,7 +2,7 @@
 byceps.services.user.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -12,14 +12,14 @@ from typing import Dict, Iterator, Optional, Set
 from flask import url_for
 
 from ...database import db
-from ...typing import PartyID, UserID
+from ...typing import BrandID, UserID
 
 from ..email import service as email_service
-from ..orga_team.models import OrgaTeam, Membership as OrgaTeamMembership
 from ..user_avatar.models import Avatar, AvatarSelection
 from ..verification_token.models import Token
 
 from .models.user import AnonymousUser, User, UserTuple
+from . import event_service
 
 
 def count_users() -> int:
@@ -51,19 +51,12 @@ def count_disabled_users() -> int:
         .count()
 
 
-def find_user(user_id: UserID, *, with_orga_teams: bool=False) -> Optional[User]:
+def find_user(user_id: UserID) -> Optional[User]:
     """Return the user with that ID, or `None` if not found."""
-    query = User.query
-
-    if with_orga_teams:
-        query = query.options(
-            db.joinedload('orga_team_memberships').joinedload('orga_team').joinedload('party')
-        )
-
-    return query.get(user_id)
+    return User.query.get(user_id)
 
 
-def find_users(user_ids: Set[UserID], *, party_id: PartyID=None) -> Set[UserTuple]:
+def find_users(user_ids: Set[UserID]) -> Set[UserTuple]:
     """Return the users and their current avatars' URLs with those IDs."""
     if not user_ids:
         return set()
@@ -75,23 +68,10 @@ def find_users(user_ids: Set[UserID], *, party_id: PartyID=None) -> Set[UserTupl
         .filter(User.id.in_(frozenset(user_ids))) \
         .all()
 
-    if party_id is not None:
-        orga_id_rows = db.session \
-            .query(OrgaTeamMembership.user_id) \
-            .join(OrgaTeam) \
-            .filter(OrgaTeam.party_id == party_id) \
-            .filter(OrgaTeamMembership.user_id.in_(frozenset(user_ids))) \
-            .group_by(OrgaTeamMembership.user_id) \
-            .having(db.func.count(OrgaTeamMembership.user_id) > 0) \
-            .all()
-        orga_team_members = {row[0] for row in orga_id_rows}
-    else:
-        orga_team_members = frozenset()
-
     def to_tuples() -> Iterator[UserTuple]:
         for user_id, screen_name, is_deleted, avatar in rows:
             avatar_url = avatar.url if avatar else None
-            is_orga = user_id in orga_team_members
+            is_orga = False  # Information is not available here by design.
 
             yield UserTuple(
                 user_id,
@@ -142,8 +122,10 @@ def _do_users_matching_filter_exist(model_attribute: str, search_value: str) -> 
     return user_count > 0
 
 
-def send_email_address_confirmation_email(user: User, verification_token: Token
-                                         ) -> None:
+def send_email_address_confirmation_email(user: User, verification_token: Token,
+                                          brand_id: BrandID) -> None:
+    sender_address = email_service.get_sender_address_for_brand(brand_id)
+
     confirmation_url = url_for('.confirm_email_address',
                                token=verification_token.token,
                                _external=True)
@@ -155,7 +137,7 @@ def send_email_address_confirmation_email(user: User, verification_token: Token
     ).format(user, confirmation_url)
     recipients = [user.email_address]
 
-    email_service.send_email(recipients, subject, body)
+    email_service.enqueue_email(sender_address, recipients, subject, body)
 
 
 def confirm_email_address(verification_token: Token) -> None:
@@ -164,6 +146,7 @@ def confirm_email_address(verification_token: Token) -> None:
     """
     user = verification_token.user
 
+    user.email_address_verified = True
     user.enabled = True
     db.session.delete(verification_token)
     db.session.commit()
@@ -183,3 +166,41 @@ def update_user_details(user: User, first_names: str, last_name: str,
     user.detail.phone_number = phone_number
 
     db.session.commit()
+
+
+def enable_user(user_id: UserID, initiator_id: UserID) -> None:
+    """Enable the user account."""
+    user = _get_user(user_id)
+
+    user.enabled = True
+
+    event = event_service._build_event('user-enabled', user.id, {
+        'initiator_id': str(initiator_id),
+    })
+    db.session.add(event)
+
+    db.session.commit()
+
+
+def disable_user(user_id: UserID, initiator_id: UserID) -> None:
+    """Disable the user account."""
+    user = _get_user(user_id)
+
+    user.enabled = False
+
+    event = event_service._build_event('user-disabled', user.id, {
+        'initiator_id': str(initiator_id),
+    })
+    db.session.add(event)
+
+    db.session.commit()
+
+
+def _get_user(user_id: UserID) -> User:
+    """Return the user with that ID, or raise an exception."""
+    user = find_user(user_id)
+
+    if user is None:
+        raise ValueError("Unknown user ID '{}'.".format(user_id))
+
+    return user

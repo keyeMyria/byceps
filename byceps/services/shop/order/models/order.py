@@ -2,14 +2,13 @@
 byceps.services.shop.order.models.order.order
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from collections import namedtuple
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
 from typing import NewType, Set
 from uuid import UUID
 
@@ -23,36 +22,13 @@ from ....user.models.user import User
 
 from ...article.models.article import Article
 
+from .payment import PaymentMethod, PaymentState
+
 
 OrderID = NewType('OrderID', UUID)
 
 
 OrderNumber = NewType('OrderNumber', str)
-
-
-class Orderer:
-    """Someone who orders articles."""
-
-    def __init__(self, user: User, first_names: str, last_name: str,
-                 country: str, zip_code: str, city: str, street: str) -> None:
-        self.user = user
-        self.first_names = first_names
-        self.last_name = last_name
-        self.country = country
-        self.zip_code = zip_code
-        self.city = city
-        self.street = street
-
-
-PaymentMethod = Enum('PaymentMethod', ['bank_transfer', 'cash', 'direct_debit'])
-
-
-PaymentState = Enum('PaymentState', [
-    'open',
-    'canceled_before_paid',
-    'paid',
-    'canceled_after_paid',
-])
 
 
 OrderTuple = namedtuple('OrderTuple', [
@@ -77,7 +53,6 @@ OrderTuple = namedtuple('OrderTuple', [
     'is_shipped',
     'cancelation_reason',
     'items',
-    'total_item_quantity',
     'total_price',
 ])
 
@@ -95,9 +70,6 @@ class Order(db.Model):
     """An order for articles, placed by a user."""
     __tablename__ = 'shop_orders'
     query_class = OrderQuery
-    __table_args__ = (
-        db.UniqueConstraint('party_id', 'order_number'),
-    )
 
     id = db.Column(db.Uuid, default=generate_uuid, primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
@@ -113,7 +85,7 @@ class Order(db.Model):
     street = db.Column(db.Unicode(40), nullable=False)
     invoice_created_at = db.Column(db.DateTime, nullable=True)
     _payment_method = db.Column('payment_method', db.Unicode(20), nullable=False)
-    _payment_state = db.Column('payment_state', db.Unicode(20), nullable=False)
+    _payment_state = db.Column('payment_state', db.Unicode(20), index=True, nullable=False)
     payment_state_updated_at = db.Column(db.DateTime, nullable=True)
     payment_state_updated_by_id = db.Column(db.Uuid, db.ForeignKey('users.id'), nullable=True)
     payment_state_updated_by = db.relationship(User, foreign_keys=[payment_state_updated_by_id])
@@ -170,11 +142,6 @@ class Order(db.Model):
     def is_paid(self) -> bool:
         return self.payment_state == PaymentState.paid
 
-    @property
-    def item_total_quantity(self) -> int:
-        """Return the sum of all items' quantities."""
-        return sum(item.quantity for item in self.items)
-
     def collect_articles(self) -> Set[Article]:
         """Return the articles associated with this order."""
         return {item.article for item in self.items}
@@ -220,7 +187,6 @@ class Order(db.Model):
             self.is_shipped,
             self.cancelation_reason,
             items,
-            self.item_total_quantity,
             self.calculate_total_price(),
         )
 

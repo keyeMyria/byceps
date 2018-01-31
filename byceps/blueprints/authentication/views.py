@@ -2,7 +2,7 @@
 byceps.blueprints.authentication.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -17,12 +17,14 @@ from ...services.authentication.password import \
 from ...services.authentication.session import service as session_service
 from ...services.authorization import service as authorization_service
 from ...services.terms import service as terms_service
+from ...services.user import event_service as user_event_service
 from ...services.user import service as user_service
 from ...services.user_avatar import service as user_avatar_service
 from ...services.verification_token import service as verification_token_service
+from ...typing import UserID
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_notice, flash_success
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import redirect_to, respond_no_content
 
 from ..authorization.registry import permission_registry
@@ -147,14 +149,12 @@ def login():
             abort(403)
 
     if not in_admin_mode:
-        brand_id = g.party.brand_id
-
-        terms_version = terms_service.find_current_version(brand_id)
+        terms_version = terms_service.find_current_version(g.brand_id)
 
         if not terms_version:
             raise Exception(
                 'No terms of service defined for brand "{}", denying login.'
-                .format(brand_id))
+                .format(g.brand_id))
 
         if not terms_service.has_user_accepted_version(user.id, terms_version.id):
             verification_token = verification_token_service \
@@ -175,8 +175,18 @@ def login():
             'No session token found for user %s on attempted login.', user)
         abort(500)
 
+    _create_login_event(user.id)
+
     user_session.start(user.id, session_token.token, permanent=permanent)
     flash_success('Erfolgreich eingeloggt als {}.', user.screen_name)
+
+
+def _create_login_event(user_id: UserID) -> None:
+    data = {
+        'ip_address': request.remote_addr,
+    }
+
+    user_event_service.create_event('user-logged-in', user_id, data)
 
 
 @blueprint.route('/logout', methods=['POST'])
@@ -214,7 +224,7 @@ def password_update():
 
     password = form.new_password.data
 
-    password_service.update_password_hash(user.id, password)
+    password_service.update_password_hash(user.id, password, user.id)
 
     flash_success('Das Passwort wurde geändert.')
     return redirect_to('.login_form')
@@ -252,7 +262,7 @@ def request_password_reset():
                     'noch nicht bestätigt.', screen_name)
         return redirect_to('user.request_email_address_confirmation_email')
 
-    password_reset_service.prepare_password_reset(user)
+    password_reset_service.prepare_password_reset(user, g.brand_id)
 
     flash_success(
         'Ein Link zum Setzen eines neuen Passworts für den Benutzernamen "{}" '

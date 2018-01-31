@@ -2,7 +2,7 @@
 byceps.blueprints.shop_order_admin.models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -10,7 +10,7 @@ from enum import Enum
 
 from ...util import iterables
 
-from ...services.shop.order.models.order import PaymentState
+from ...services.shop.order.models.payment import PaymentState
 
 
 IGNORED = None

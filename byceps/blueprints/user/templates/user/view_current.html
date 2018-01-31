@@ -12,10 +12,6 @@
   <h2>Benutzerkonto</h2>
   <table class="index">
     <tr>
-      <th>Erstellt</th>
-      <td>{{ render_datetime(user.created_at) }}</td>
-    </tr>
-    <tr>
       <th>Benutzername</th>
       <td>{{ user.screen_name }}</td>
     </tr>
@@ -24,28 +20,40 @@
       <td>{{ user.email_address }}</td>
     </tr>
     <tr>
+      <th>Sicherheit</th>
+      <td><a class="button button--inline" href="{{ url_for('authentication.password_update_form') }}">{{ render_icon('password') }} Passwort ändern</a></td>
+    </tr>
+  </table>
+
+  <h2>Profil</h2>
+  <table class="index">
+    {%- if g.site_mode.is_public() %}
+    <tr>
+      <th>öffentliches Profil</th>
+      <td><a href="{{ url_for('.view', user_id=user.id) }}">ansehen</a></td>
+    </tr>
+    {%- endif %}
+    <tr>
       <th>Avatar</th>
       <td>
-        {{ render_user_avatar_128(user) }}
-      {%- if g.current_user.id == user.id %}
-        <div class="button-row" style="margin-bottom: 4px; margin-top: 0;">
-          <a class="button" href="{{ url_for('user_avatar.update_form') }}">{{ render_icon('upload') }} hochladen</a>
-          {%- if user.avatar %}
-          <a class="button" data-action="avatar-delete" href="{{ url_for('user_avatar.delete', _method='DELETE') }}">{{ render_icon('delete') }} entfernen</a>
-          {%- endif %}
+        <div style="margin-bottom: 0.5rem;">
+          {{ render_user_avatar_128(user) }}
         </div>
-      {%- endif %}
+
+        <div class="dropdown">
+          <button class="dropdown-toggle button button--inline">bearbeiten {{ render_icon('caret-down') -}}</button>
+          <ol>
+            <li><a href="{{ url_for('user_avatar.update_form') }}">{{ render_icon('upload') }} hochladen</a></li>
+            {%- if user.avatar %}
+            <li><a data-action="avatar-delete" href="{{ url_for('user_avatar.delete', _method='DELETE') }}">{{ render_icon('delete') }} entfernen</a></li>
+            {%- endif %}
+          </ol>
+        </div>
       </td>
     </tr>
   </table>
-  <div class="button-row">
-    {%- if g.site_mode.is_public() %}
-    <a class="button" href="{{ url_for('.view', user_id=user.id) }}">{{ render_icon('view') }} öffentliches Profil ansehen</a>
-    {%- endif %}
-    <a class="button" href="{{ url_for('authentication.password_update_form') }}">{{ render_icon('password') }} Passwort ändern</a>
-  </div>
 
-  <h2>Persönliche Daten</h2>
+  <h2>Persönliche Daten <a class="button button--inline" href="{{ url_for('.details_update_form') }}">{{ render_icon('edit') }} bearbeiten</a></h2>
   <table class="index">
     <tr>
       <th>Voller Name</th>
@@ -79,9 +87,6 @@
       <td>{{ user.detail.phone_number|fallback }}</td>
     </tr>
   </table>
-  <div class="button-row">
-    <a class="button" href="{{ url_for('.details_update_form') }}">{{ render_icon('edit') }} bearbeiten</a>
-  </div>
 
   {%- if g.site_mode.is_public() %}
   <h2>Newsletter</h2>
@@ -89,11 +94,24 @@
     <tr>
       <th>Status</th>
       <td>
-        {%- if subscribed_to_newsletter -%}
-          {{ render_icon('enabled', color='#009900') }} abonniert <a class="button button--inline" style="margin-left: 0.5em;" data-action="newsletter-unsubscribe" href="{{ url_for('newsletter.unsubscribe') }}">{{ render_icon('edit') }} abmelden</a>
-        {%- else -%}
-          {{ render_icon('disabled', color='#cc0000') }} nicht abonniert <a class="button button--inline" style="margin-left: 0.5em;" data-action="newsletter-subscribe" href="{{ url_for('newsletter.subscribe') }}">{{ render_icon('edit') }} anmelden</a>
-        {%- endif -%}
+        <div class="dropdown left">
+          <button class="dropdown-toggle button button--inline">
+            {%- if subscribed_to_newsletter -%}
+            {{ render_icon('enabled', color='#009900') }} abonniert
+            {%- else -%}
+            {{ render_icon('disabled', color='#cc0000') }} nicht abonniert
+            {%- endif -%}
+            {{ ' ' }}{{ render_icon('caret-down') -}}
+          </button>
+          <ol>
+            {% if subscribed_to_newsletter -%}
+            <li><a data-action="newsletter-unsubscribe" href="{{ url_for('newsletter.unsubscribe') }}">{{ render_icon('disabled', color='#cc0000') }} abmelden</a></li>
+            {%- else -%}
+            <li><a data-action="newsletter-subscribe" href="{{ url_for('newsletter.subscribe') }}">{{ render_icon('enabled', color='#009900') }} abonnieren</a></li>
+            {%- endif %}
+          </ol>
+        </div>
+      </td>
     </tr>
   </table>
   {%- endif %}

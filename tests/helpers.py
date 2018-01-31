@@ -2,7 +2,7 @@
 tests.helpers
 ~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -27,7 +27,8 @@ def app_context(*, config_filename=CONFIG_FILENAME_TEST_PARTY):
 @contextmanager
 def current_party_set(app, party):
     def handler(sender, **kwargs):
-        g.party = party
+        g.party_id = party.id
+        g.brand_id = party.brand_id
 
     with appcontext_pushed.connected_to(handler, app):
         yield

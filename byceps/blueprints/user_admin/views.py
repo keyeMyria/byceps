@@ -2,24 +2,25 @@
 byceps.blueprints.user_admin.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from collections import defaultdict
 
-from flask import abort, request
+from flask import abort, g, redirect, request, url_for
 
+from ...services.authentication.password import service as password_service
 from ...services.authorization import service as authorization_service
+from ...services.orga_team import service as orga_team_service
 from ...services.party import service as party_service
 from ...services.shop.order import service as order_service
 from ...services.ticketing import ticket_service
 from ...services.user import service as user_service
-from ...services.user_activity import service as activity_service
 from ...services.user_badge import service as badge_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_success
-from ...util.templating import templated
+from ...util.framework.templating import templated
 from ...util.views import respond_no_content
 
 from ..authorization.decorators import permission_required
@@ -27,6 +28,7 @@ from ..authorization.registry import permission_registry
 from ..authorization_admin.authorization import RolePermission
 
 from .authorization import UserPermission
+from .forms import SetPasswordForm
 from .models import UserEnabledFilter, UserStateFilter
 from . import service
 
@@ -49,7 +51,7 @@ def index(page):
 
     enabled_filter = UserEnabledFilter.__members__.get(only)
 
-    user_state_filter = UserStateFilter.find(enabled_filter )
+    user_state_filter = UserStateFilter.find(enabled_filter)
 
     users = service.get_users_paginated(page, per_page,
                                         search_term=search_term,
@@ -78,6 +80,8 @@ def view(user_id):
     """Show a user's interal profile."""
     user = _get_user_or_404(user_id)
 
+    orga_team_memberships = orga_team_service.get_memberships_for_user(user.id)
+
     badges_with_awarding_quantity = badge_service.get_badges_for_user(user.id)
 
     orders = order_service.get_orders_placed_by_user(user.id)
@@ -88,6 +92,7 @@ def view(user_id):
 
     return {
         'user': user,
+        'orga_team_memberships': orga_team_memberships,
         'badges_with_awarding_quantity': badges_with_awarding_quantity,
         'orders': orders,
         'order_parties_by_id': order_parties_by_id,
@@ -124,6 +129,69 @@ def _group_tickets_by_party_id(tickets):
 def _get_parties_by_id(party_ids):
     parties = party_service.get_parties(party_ids)
     return {p.id: p for p in parties}
+
+
+@blueprint.route('/<uuid:user_id>/password')
+@permission_required(UserPermission.set_password)
+@templated
+def set_password_form(user_id, erroneous_form=None):
+    """Show a form to set a new password for the user."""
+    user = _get_user_or_404(user_id)
+
+    form = erroneous_form if erroneous_form else SetPasswordForm()
+
+    return {
+        'user': user,
+        'form': form,
+    }
+
+
+@blueprint.route('/<uuid:user_id>/password', methods=['POST'])
+@permission_required(UserPermission.set_password)
+def set_password(user_id):
+    """Set a new password for the user."""
+    form = SetPasswordForm(request.form)
+    if not form.validate():
+        return set_password_form(user_id, form)
+
+    user = _get_user_or_404(user_id)
+    new_password = form.password.data
+    initiator = g.current_user
+
+    password_service.update_password_hash(user.id, new_password, initiator.id)
+
+    flash_success("Für Benutzerkonto '{}' wurde ein neues Passwort gesetzt.",
+                  user.screen_name)
+
+    return redirect(url_for('.view', user_id=user.id))
+
+
+@blueprint.route('/<uuid:user_id>/flags/enabled', methods=['POST'])
+@permission_required(UserPermission.administrate)
+@respond_no_content
+def set_enabled_flag(user_id):
+    """Enable the user."""
+    user = _get_user_or_404(user_id)
+
+    initiator_id = g.current_user.id
+
+    user_service.enable_user(user.id, initiator_id)
+
+    flash_success("Das Benutzerkonto '{}' wurde aktiviert.", user.screen_name)
+
+
+@blueprint.route('/<uuid:user_id>/flags/enabled', methods=['DELETE'])
+@permission_required(UserPermission.administrate)
+@respond_no_content
+def unset_enabled_flag(user_id):
+    """Disable the user."""
+    user = _get_user_or_404(user_id)
+
+    initiator_id = g.current_user.id
+
+    user_service.disable_user(user.id, initiator_id)
+
+    flash_success("Das Benutzerkonto '{}' wurde deaktiviert.", user.screen_name)
 
 
 @blueprint.route('/<uuid:user_id>/permissions')
@@ -189,18 +257,18 @@ def role_deassign(user_id, role_id):
                   user.screen_name, role.title)
 
 
-@blueprint.route('/<uuid:user_id>/activity')
+@blueprint.route('/<uuid:user_id>/events')
 @permission_required(UserPermission.view)
 @templated
-def view_activity(user_id):
-    """Show user's activity."""
+def view_events(user_id):
+    """Show user's events."""
     user = _get_user_or_404(user_id)
 
-    activities = activity_service.get_activities_for_user(user.id)
+    events = service.get_events(user.id)
 
     return {
         'user': user,
-        'activities': activities,
+        'events': events,
     }
 
 

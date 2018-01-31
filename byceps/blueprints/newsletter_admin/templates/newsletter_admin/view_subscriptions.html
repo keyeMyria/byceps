@@ -16,44 +16,34 @@
   </nav>
   <h1>Bestellstatus</h1>
 
+  <div class="row row--space-around row--wrap bigstats">
+    <div class="column-auto">
+      {{ render_bigstats_item('{:n}'.format(totals[State.requested]), 'angefordert', icon_name='enabled', color='#008800') }}
+    </div>
+    <div class="column-auto">
+      {{ render_bigstats_item('{:n}'.format(totals[State.declined]), 'abgelehnt', icon_name='disabled', color='#cc0000') }}
+    </div>
+    <div class="column-auto">
+      {{ render_bigstats_item('{:n}'.format(totals['total']), '&sum; gesamt'|safe) }}
+    </div>
+  </div>
+
   {%- if g.current_user.has_permission(NewsletterPermission.export_subscribers) %}
   <div class="button-row">
-    <a class="button" href="{{ url_for('.export_subscribers', brand_id=brand.id) }}">
-      <div class="block-with-icon">
-        <div class="block-with-icon-icon">
-          {{ render_icon('download') }}
+    <div class="dropdown">
+      <button class="dropdown-toggle button">
+        <div class="block-with-icon">
+          <div class="block-with-icon-icon">{{ render_icon('download') }}</div>
+          <div class="block-with-icon-body">Abonnenten {{ render_icon('caret-down') }}<br>exportieren</div>
         </div>
-        <div class="block-with-icon-body">
-          Abonnenten exportieren<br>
-          <small>{{ 'Benutzernamen und E-Mail-Adressen (als JSON)'|dim }}</small>
-        </div>
-      </div>
-    </a>
-    <a class="button" href="{{ url_for('.export_subscriber_email_addresses', brand_id=brand.id) }}">
-      <div class="block-with-icon">
-        <div class="block-with-icon-icon">
-          {{ render_icon('download') }}
-        </div>
-        <div class="block-with-icon-body">
-          Abonnenten exportieren<br>
-          <small>{{ 'nur E-Mail-Adressen (als Text)'|dim }}</small>
-        </div>
-      </div>
-    </a>
+      </button>
+      <ol>
+        <li><a href="{{ url_for('.export_subscribers', brand_id=brand.id) }}">{{ render_icon('download') }} Benutzernamen und E-Mail-Adressen (als JSON)</a></li>
+        <li><a href="{{ url_for('.export_subscriber_email_addresses', brand_id=brand.id) }}">{{ render_icon('download') }} nur E-Mail-Adressen (als Text)</a></li>
+      </ol>
+    </div>
   </div>
   {%- endif %}
-
-  <div class="row row--space-around bigstats">
-    <div class="column-auto">
-      {{ render_bigstats_item(totals[State.requested], 'angefordert', icon_name='enabled', color='#008800') }}
-    </div>
-    <div class="column-auto">
-      {{ render_bigstats_item(totals[State.declined], 'abgelehnt', icon_name='disabled', color='#cc0000') }}
-    </div>
-    <div class="column-auto">
-      {{ render_bigstats_item(totals['total'], '&sum; gesamt'|safe) }}
-    </div>
-  </div>
 
   <table class="index">
     <thead>

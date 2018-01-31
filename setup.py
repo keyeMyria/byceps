@@ -30,8 +30,8 @@ setup(
         'Programming Language :: JavaScript',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Communications',
         'Topic :: Games/Entertainment',
@@ -40,6 +40,6 @@ setup(
     ],
     packages=['byceps'],
     install_requires=requirements,
+    setup_requires=['pytest-runner'],
     tests_require=requirements_test,
-    test_suite='nose2.collector.collector',
 )

@@ -2,7 +2,7 @@
 byceps.services.orga.models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -10,7 +10,7 @@ from ...database import db
 from ...typing import BrandID, UserID
 from ...util.instances import ReprBuilder
 
-from ..brand.models import Brand
+from ..brand.models.brand import Brand
 from ..user.models.user import User
 
 

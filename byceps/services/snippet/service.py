@@ -2,14 +2,12 @@
 byceps.services.snippet.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from difflib import HtmlDiff
 from typing import Optional, Sequence
-
-from sqlalchemy.orm.exc import NoResultFound
 
 from ...database import db
 from ...typing import PartyID, UserID
@@ -123,20 +121,17 @@ def find_snippet_version(version_id: SnippetVersionID
     return SnippetVersion.query.get(version_id)
 
 
-def get_current_version_of_snippet_with_name(party_id: PartyID, name: str
-                                            ) -> SnippetVersion:
+def find_current_version_of_snippet_with_name(party_id: PartyID, name: str
+                                             ) -> SnippetVersion:
     """Return the current version of the snippet with that name for that
-    party.
+    party, or `None` if not found.
     """
-    try:
-        return SnippetVersion.query \
-            .join(CurrentVersionAssociation) \
-            .join(Snippet) \
-                .filter(Snippet.party_id == party_id) \
-                .filter(Snippet.name == name) \
-            .one()
-    except NoResultFound:
-        raise SnippetNotFound(name)
+    return SnippetVersion.query \
+        .join(CurrentVersionAssociation) \
+        .join(Snippet) \
+            .filter(Snippet.party_id == party_id) \
+            .filter(Snippet.name == name) \
+        .one_or_none()
 
 
 class SnippetNotFound(Exception):

@@ -2,29 +2,30 @@
 byceps.blueprints.board.authorization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from byceps.util.authorization import create_permission_enum
 
 
+BoardPermission = create_permission_enum('board', [
+    'hide',
+    'update_of_others',
+    'view_hidden',
+])
+
+
 BoardTopicPermission = create_permission_enum('board_topic', [
     'create',
     'update',
-    'update_of_others',
-    'hide',
     'lock',
     'move',
     'pin',
-    'view_hidden',
 ])
 
 
 BoardPostingPermission = create_permission_enum('board_posting', [
     'create',
     'update',
-    'update_of_others',
-    'hide',
-    'view_hidden',
 ])

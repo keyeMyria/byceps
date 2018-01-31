@@ -2,7 +2,7 @@
 byceps.services.orga_presence.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -16,7 +16,7 @@ from ...database import db
 from ...typing import PartyID
 from ...util.datetime.range import create_adjacent_ranges, DateTimeRange
 
-from ..party.models import Party
+from ..party.models.party import Party
 
 from .models import Presence, Task
 

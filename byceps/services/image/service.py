@@ -2,7 +2,7 @@
 byceps.services.image.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -13,17 +13,8 @@ from ...util.image.models import Dimensions, ImageType
 from ...util.image.typeguess import guess_type
 
 
-ALL_IMAGE_TYPES = frozenset(ImageType)  # type: FrozenSet[ImageType]
-
-
-
 class ImageTypeProhibited(ValueError):
     pass
-
-
-def get_all_image_types() -> FrozenSet[ImageType]:
-    """Return all known image types."""
-    return ALL_IMAGE_TYPES
 
 
 def get_image_type_names(types: Iterable[ImageType]) -> FrozenSet[str]:

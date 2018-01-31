@@ -2,22 +2,22 @@
 byceps.services.shop.article.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence, Set
 
 from flask_sqlalchemy import Pagination
 
 from ....database import BaseQuery, db
 from ....typing import PartyID
 
-from ...party.models import Party
+from ...party.models.party import Party
 
-from .models.article import Article, ArticleNumber
+from .models.article import Article, ArticleID, ArticleNumber
 from .models.attached_article import AttachedArticle
 from .models.compilation import ArticleCompilation, ArticleCompilationItem
 
@@ -79,12 +79,12 @@ def unattach_article(attached_article: Article) -> None:
     db.session.commit()
 
 
-def find_article(article_id) -> Optional[Article]:
-    """Return the article with that id, or `None` if not found."""
+def find_article(article_id: ArticleID) -> Optional[Article]:
+    """Return the article with that ID, or `None` if not found."""
     return Article.query.get(article_id)
 
 
-def find_article_with_details(article_id) -> Optional[Article]:
+def find_article_with_details(article_id: ArticleID) -> Optional[Article]:
     """Return the article with that ID, or `None` if not found."""
     return Article.query \
         .options(
@@ -96,7 +96,7 @@ def find_article_with_details(article_id) -> Optional[Article]:
 
 
 def find_attached_article(attached_article_id) -> Optional[AttachedArticle]:
-    """Return the attached article with that id, or `None` if not found."""
+    """Return the attached article with that ID, or `None` if not found."""
     return AttachedArticle.query.get(attached_article_id)
 
 
@@ -110,6 +110,17 @@ def get_article_count_by_party_id() -> Dict[PartyID, int]:
         .outerjoin(Article) \
         .group_by(Party.id) \
         .all())
+
+
+def get_articles_by_numbers(article_numbers: Set[ArticleNumber]
+                           ) -> Sequence[Article]:
+    """Return the articles with those numbers."""
+    if not article_numbers:
+        return []
+
+    return Article.query \
+        .filter(Article.item_number.in_(article_numbers)) \
+        .all()
 
 
 def get_articles_for_party(party_id: PartyID) -> Sequence[Article]:

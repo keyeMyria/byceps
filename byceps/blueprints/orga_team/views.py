@@ -2,7 +2,7 @@
 byceps.blueprints.orga_team.views
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:Copyright: 2006-2017 Jochen Kupperschmidt
+:Copyright: 2006-2018 Jochen Kupperschmidt
 :License: Modified BSD, see LICENSE for details.
 """
 
@@ -13,7 +13,7 @@ from flask import g
 from ...services.orga_team import service as orga_team_service
 from ...services.user import service as user_service
 from ...util.framework.blueprint import create_blueprint
-from ...util.templating import templated
+from ...util.framework.templating import templated
 
 
 Orga = namedtuple('Orga', ['user', 'full_name', 'team_name', 'duties'])
@@ -26,7 +26,7 @@ blueprint = create_blueprint('orga_team', __name__)
 @templated
 def index():
     """List all organizers for the current party."""
-    memberships = orga_team_service.get_memberships_for_party(g.party.id)
+    memberships = orga_team_service.get_memberships_for_party(g.party_id)
 
     users_by_id = _get_users_by_id(memberships)
 
@@ -49,6 +49,9 @@ def index():
 def _get_users_by_id(memberships):
     user_ids = {ms.user_id for ms in memberships}
 
-    users = user_service.find_users(user_ids, party_id=g.party.id)
+    users = user_service.find_users(user_ids)
+
+    # Each of these users is an organizer.
+    users = {u._replace(is_orga=True) for u in users}
 
     return {user.id: user for user in users}
