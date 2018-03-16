@@ -19,12 +19,12 @@ def get_config_filename_from_env() -> str:
     Raise an exception if it isn't set.
     """
     env = os.environ.get(CONFIG_VAR_NAME)
-
+    print(" ------- =========== {} ".format(os.environ))
     if not env:
         raise Exception(
             "No configuration file was specified via the '{}' "
             "environment variable.".format(CONFIG_VAR_NAME))
-
+    print(" ----- === = == {} ".format(env))
     return env
 
 

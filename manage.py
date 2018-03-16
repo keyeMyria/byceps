@@ -22,6 +22,7 @@ from byceps.util.system import get_config_filename_from_env_or_exit
 
 
 config_filename = get_config_filename_from_env_or_exit()
+print(" ----- ======= {} ".format(config_filename))
 
 app = create_app(config_filename)
 init_app(app)
@@ -66,7 +67,7 @@ class SslServer(Server):
         super().__init__(**kwargs)
 
 
-manager.add_command('runserver_ssl', SslServer())
+# manager.add_command('runserver_ssl', SslServer())
 
 
 if __name__ == '__main__':
