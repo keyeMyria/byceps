@@ -19,17 +19,19 @@ from ...services.ticketing import ticket_service
 from ...services.user import service as user_service
 from ...services.user_badge import service as badge_service
 from ...util.framework.blueprint import create_blueprint
-from ...util.framework.flash import flash_success
+from ...util.framework.flash import flash_error, flash_success
 from ...util.framework.templating import templated
-from ...util.views import respond_no_content
+from ...util.views import redirect_to, respond_no_content
 
 from ..authorization.decorators import permission_required
 from ..authorization.registry import permission_registry
 from ..authorization_admin.authorization import RolePermission
+from ..user.signals import account_deleted, account_suspended, \
+    account_unsuspended
 
 from .authorization import UserPermission
-from .forms import SetPasswordForm
-from .models import UserEnabledFilter, UserStateFilter
+from .forms import DeleteAccountForm, SetPasswordForm, SuspendAccountForm
+from .models import UserStateFilter
 from . import service
 
 
@@ -49,22 +51,25 @@ def index(page):
     search_term = request.args.get('search_term', default='').strip()
     only = request.args.get('only')
 
-    enabled_filter = UserEnabledFilter.__members__.get(only)
-
-    user_state_filter = UserStateFilter.find(enabled_filter)
+    user_state_filter = UserStateFilter.__members__.get(only,
+                                                        UserStateFilter.none)
 
     users = service.get_users_paginated(page, per_page,
                                         search_term=search_term,
-                                        enabled_filter=enabled_filter)
+                                        state_filter=user_state_filter)
 
     total_enabled = user_service.count_enabled_users()
     total_disabled = user_service.count_disabled_users()
+    total_suspended = user_service.count_suspended_users()
+    total_deleted = user_service.count_deleted_users()
     total_overall = total_enabled + total_disabled
 
     return {
         'users': users,
         'total_enabled': total_enabled,
         'total_disabled': total_disabled,
+        'total_suspended': total_suspended,
+        'total_deleted': total_deleted,
         'total_overall': total_overall,
         'search_term': search_term,
         'only': only,
@@ -192,6 +197,144 @@ def unset_enabled_flag(user_id):
     user_service.disable_user(user.id, initiator_id)
 
     flash_success("Das Benutzerkonto '{}' wurde deaktiviert.", user.screen_name)
+
+
+@blueprint.route('/<uuid:user_id>/suspend')
+@permission_required(UserPermission.administrate)
+@templated
+def suspend_account_form(user_id, erroneous_form=None):
+    """Show form to suspend the user account."""
+    user = _get_user_or_404(user_id)
+
+    if user.suspended:
+        flash_error("Das Benutzerkonto '{}' ist bereits gesperrt.",
+                    user.screen_name)
+        return redirect_to('.view', user_id=user.id)
+
+    form = erroneous_form if erroneous_form else SuspendAccountForm()
+
+    return {
+        'user': user,
+        'form': form,
+    }
+
+
+@blueprint.route('/<uuid:user_id>/suspend', methods=['POST'])
+@permission_required(UserPermission.administrate)
+def suspend_account(user_id):
+    """Suspend the user account."""
+    user = _get_user_or_404(user_id)
+
+    if user.suspended:
+        flash_error("Das Benutzerkonto '{}' ist bereits gesperrt.",
+                    user.screen_name)
+        return redirect_to('.view', user_id=user.id)
+
+    form = SuspendAccountForm(request.form)
+    if not form.validate():
+        return suspend_account_form(user_id, form)
+
+    initiator_id = g.current_user.id
+    reason = form.reason.data.strip()
+
+    user_service.suspend_account(user.id, initiator_id, reason)
+
+    account_suspended.send(None, user_id=user.id, initiator_id=initiator_id)
+
+    flash_success("Das Benutzerkonto '{}' wurde gesperrt.", user.screen_name)
+    return redirect_to('.view', user_id=user.id)
+
+
+@blueprint.route('/<uuid:user_id>/unsuspend')
+@permission_required(UserPermission.administrate)
+@templated
+def unsuspend_account_form(user_id, erroneous_form=None):
+    """Show form to unsuspend the user account."""
+    user = _get_user_or_404(user_id)
+
+    if not user.suspended:
+        flash_error("Das Benutzerkonto '{}' ist bereits entsperrt.",
+                    user.screen_name)
+        return redirect_to('.view', user_id=user.id)
+
+    form = erroneous_form if erroneous_form else SuspendAccountForm()
+
+    return {
+        'user': user,
+        'form': form,
+    }
+
+
+@blueprint.route('/<uuid:user_id>/unsuspend', methods=['POST'])
+@permission_required(UserPermission.administrate)
+def unsuspend_account(user_id):
+    """Unsuspend the user account."""
+    user = _get_user_or_404(user_id)
+
+    if not user.suspended:
+        flash_error("Das Benutzerkonto '{}' ist bereits entsperrt.",
+                    user.screen_name)
+        return redirect_to('.view', user_id=user.id)
+
+    form = SuspendAccountForm(request.form)
+    if not form.validate():
+        return unsuspend_account_form(user_id, form)
+
+    initiator_id = g.current_user.id
+    reason = form.reason.data.strip()
+
+    user_service.unsuspend_account(user.id, initiator_id, reason)
+
+    account_unsuspended.send(None, user_id=user.id, initiator_id=initiator_id)
+
+    flash_success("Das Benutzerkonto '{}' wurde entsperrt.", user.screen_name)
+    return redirect_to('.view', user_id=user.id)
+
+
+@blueprint.route('/<uuid:user_id>/delete')
+@permission_required(UserPermission.administrate)
+@templated
+def delete_account_form(user_id, erroneous_form=None):
+    """Show form to delete the user account."""
+    user = _get_user_or_404(user_id)
+
+    if user.deleted:
+        flash_error("Das Benutzerkonto '{}' ist bereits gelöscht worden.",
+                    user.screen_name)
+        return redirect_to('.view', user_id=user.id)
+
+    form = erroneous_form if erroneous_form else DeleteAccountForm()
+
+    return {
+        'user': user,
+        'form': form,
+    }
+
+
+@blueprint.route('/<uuid:user_id>/delete', methods=['POST'])
+@permission_required(UserPermission.administrate)
+def delete_account(user_id):
+    """Delete the user account."""
+    user = _get_user_or_404(user_id)
+
+    if user.deleted:
+        flash_error("Das Benutzerkonto '{}' ist bereits gelöscht worden.",
+                    user.screen_name)
+        return redirect_to('.view', user_id=user.id)
+
+    form = DeleteAccountForm(request.form)
+    if not form.validate():
+        return delete_account_form(user_id, form)
+
+    initiator_id = g.current_user.id
+    reason = form.reason.data.strip()
+
+    user_service.delete_account(user.id, initiator_id, reason)
+
+    account_deleted.send(None, user_id=user.id, initiator_id=initiator_id)
+
+    flash_success("Das Benutzerkonto '{}' wurde gelöscht.", user.screen_name)
+    return redirect_to('.view', user_id=user.id)
 
 
 @blueprint.route('/<uuid:user_id>/permissions')

@@ -75,6 +75,7 @@ class User(db.Model):
     email_address = db.Column(db.Unicode(80), unique=True, nullable=False)
     email_address_verified = db.Column(db.Boolean, default=False, nullable=False)
     enabled = db.Column(db.Boolean, default=False, nullable=False)
+    suspended = db.Column(db.Boolean, default=False, nullable=False)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
     legacy_id = db.Column(db.Integer)
 
@@ -131,4 +132,4 @@ class User(db.Model):
             .build()
 
 
-UserTuple = namedtuple('UserTuple', 'id, screen_name, deleted, avatar_url, is_orga')
+UserTuple = namedtuple('UserTuple', 'id, screen_name, suspended, deleted, avatar_url, is_orga')

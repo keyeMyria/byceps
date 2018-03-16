@@ -4,19 +4,19 @@
 
 {%- if tickets %}
 <style>
-  table.checkin-tickets td {
+  table.tickets td {
     vertical-align: middle;
   }
 
-  .checkin-tickets a {
+  .tickets a {
     color: currentColor;
   }
-  .checkin-tickets a:not(:hover) {
+  .tickets a:not(:hover) {
     text-decoration: none;
   }
 </style>
 
-<table class="index wide checkin-tickets">
+<table class="index wide tickets">
   <thead>
     <tr>
       <th>Code</th>
@@ -52,6 +52,8 @@
         <button class="button color-danger" disabled>Kein Einlass!</button>
         {%- elif ticket.user_checked_in -%}
         <button class="button color-warning" disabled>Bereits eingecheckt!</button>
+        {%- elif ticket.used_by and ticket.used_by.suspended -%}
+        <button class="button color-danger" disabled>Kein Einlass!<br><small>Nutzer gesperrt</small></button>
         {%- elif ticket.used_by -%}
         <a class="button color-primary" data-action="check-in-user" href="{{ url_for('ticketing_admin.set_user_checked_in_flag', ticket_id=ticket.id) }}">{{ render_icon('log-in') }} Einchecken</a>
         {%- endif -%}

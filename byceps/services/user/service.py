@@ -51,6 +51,20 @@ def count_disabled_users() -> int:
         .count()
 
 
+def count_suspended_users() -> int:
+    """Return the number of suspended user accounts."""
+    return User.query \
+        .filter_by(suspended=True) \
+        .count()
+
+
+def count_deleted_users() -> int:
+    """Return the number of deleted user accounts."""
+    return User.query \
+        .filter_by(deleted=True) \
+        .count()
+
+
 def find_user(user_id: UserID) -> Optional[User]:
     """Return the user with that ID, or `None` if not found."""
     return User.query.get(user_id)
@@ -62,21 +76,22 @@ def find_users(user_ids: Set[UserID]) -> Set[UserTuple]:
         return set()
 
     rows = db.session \
-        .query(User.id, User.screen_name, User.deleted, Avatar) \
+        .query(User.id, User.screen_name, User.suspended, User.deleted, Avatar) \
         .outerjoin(AvatarSelection) \
         .outerjoin(Avatar) \
         .filter(User.id.in_(frozenset(user_ids))) \
         .all()
 
     def to_tuples() -> Iterator[UserTuple]:
-        for user_id, screen_name, is_deleted, avatar in rows:
+        for user_id, screen_name, suspended, deleted, avatar in rows:
             avatar_url = avatar.url if avatar else None
             is_orga = False  # Information is not available here by design.
 
             yield UserTuple(
                 user_id,
                 screen_name,
-                is_deleted,
+                suspended,
+                deleted,
                 avatar_url,
                 is_orga
             )
@@ -194,6 +209,74 @@ def disable_user(user_id: UserID, initiator_id: UserID) -> None:
     db.session.add(event)
 
     db.session.commit()
+
+
+def suspend_account(user_id: UserID, initiator_id: UserID, reason: str) -> None:
+    """Suspend the user account."""
+    user = _get_user(user_id)
+
+    user.suspended = True
+
+    event = event_service._build_event('user-suspended', user.id, {
+        'initiator_id': str(initiator_id),
+        'reason': reason,
+    })
+    db.session.add(event)
+
+    db.session.commit()
+
+
+def unsuspend_account(user_id: UserID, initiator_id: UserID, reason: str
+                     ) -> None:
+    """Unsuspend the user account."""
+    user = _get_user(user_id)
+
+    user.suspended = False
+
+    event = event_service._build_event('user-unsuspended', user.id, {
+        'initiator_id': str(initiator_id),
+        'reason': reason,
+    })
+    db.session.add(event)
+
+    db.session.commit()
+
+
+def delete_account(user_id: UserID, initiator_id: UserID, reason: str) -> None:
+    """Delete the user account."""
+    user = _get_user(user_id)
+
+    user.deleted = True
+    _anonymize_account(user)
+
+    event = event_service._build_event('user-deleted', user.id, {
+        'initiator_id': str(initiator_id),
+        'reason': reason,
+    })
+    db.session.add(event)
+
+    db.session.commit()
+
+
+def _anonymize_account(user: User) -> None:
+    """Remove or replace user details of the account."""
+    user.screen_name = 'deleted-{}'.format(user.id.hex)
+    user.email_address = '{}@user.invalid'.format(user.id.hex)
+    user.legacy_id = None
+
+    # Remove details.
+    user.detail.first_names = None
+    user.detail.last_name = None
+    user.detail.date_of_birth = None
+    user.detail.country = None
+    user.detail.zip_code = None
+    user.detail.city = None
+    user.detail.street = None
+    user.detail.phone_number = None
+
+    # Remove avatar association.
+    if user.avatar_selection is not None:
+        db.session.delete(user.avatar_selection)
 
 
 def _get_user(user_id: UserID) -> User:

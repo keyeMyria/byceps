@@ -8,7 +8,7 @@ byceps.blueprints.user.views
 
 from operator import attrgetter
 
-from flask import abort, g, jsonify, request
+from flask import abort, g, jsonify, request, Response
 
 from ...config import get_site_mode, get_user_registration_enabled
 from ...services.country import service as country_service
@@ -25,6 +25,8 @@ from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_notice, flash_success
 from ...util.framework.templating import templated
 from ...util.views import create_empty_json_response, redirect_to
+
+from ..authentication.decorators import login_required
 
 from .forms import DetailsForm, RequestConfirmationEmailForm, UserCreateForm
 from . import signals
@@ -89,10 +91,11 @@ def view_as_json(user_id):
 
 
 @blueprint.route('/me')
+@login_required
 @templated
 def view_current():
     """Show the current user's internal profile."""
-    current_user = get_current_user_or_404()
+    current_user = g.current_user
 
     user = user_service.find_user(current_user.id)
     if user is None:
@@ -119,7 +122,8 @@ def view_current_as_json():
     user = g.current_user
 
     if not user.is_active:
-        return create_empty_json_response(404)
+        # Return empty response.
+        return Response(status=403)
 
     return jsonify({
         'id': user.id,

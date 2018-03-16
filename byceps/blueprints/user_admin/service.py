@@ -20,11 +20,10 @@ from ...services.user import service as user_service
 from ...services.user_avatar import service as avatar_service
 from ...typing import UserID
 
-from .models import UserEnabledFilter
+from .models import UserStateFilter
 
 
-def get_users_paginated(page, per_page, *, search_term=None,
-                        enabled_filter=None):
+def get_users_paginated(page, per_page, *, search_term=None, state_filter=None):
     """Return the users to show on the specified page, optionally
     filtered by search term or 'enabled' flag.
     """
@@ -32,7 +31,7 @@ def get_users_paginated(page, per_page, *, search_term=None,
         .options(db.joinedload('detail')) \
         .order_by(User.created_at.desc())
 
-    query = _filter_by_enabled_flag(query, enabled_filter)
+    query = _filter_by_state(query, state_filter)
 
     if search_term:
         query = _filter_by_search_term(query, search_term)
@@ -55,11 +54,24 @@ def _filter_by_search_term(query, search_term):
         )
 
 
-def _filter_by_enabled_flag(query, enabled_filter):
-    if enabled_filter == UserEnabledFilter.enabled:
-        return query.filter_by(enabled=True)
-    elif enabled_filter == UserEnabledFilter.disabled:
-        return query.filter_by(enabled=False)
+def _filter_by_state(query, state_filter):
+    if state_filter == UserStateFilter.enabled:
+        return query \
+            .filter_by(enabled=True) \
+            .filter_by(suspended=False) \
+            .filter_by(deleted=False)
+    elif state_filter == UserStateFilter.disabled:
+        return query \
+            .filter_by(enabled=False) \
+            .filter_by(suspended=False) \
+            .filter_by(deleted=False)
+    elif state_filter == UserStateFilter.suspended:
+        return query \
+            .filter_by(suspended=True) \
+            .filter_by(deleted=False)
+    elif state_filter == UserStateFilter.deleted:
+        return query \
+            .filter_by(deleted=True)
     else:
         return query
 
@@ -165,8 +177,11 @@ def _get_additional_data(event: UserEvent, users_by_id: Dict[UserID, UserTuple]
                         ) -> Iterator[Tuple[str, Any]]:
     if event.event_type in {
             'user-created',
+            'user-deleted',
             'user-disabled',
             'user-enabled',
+            'user-suspended',
+            'user-unsuspended',
             'password-updated',
             'avatar-updated',
             'newsletter-requested',
@@ -176,6 +191,13 @@ def _get_additional_data(event: UserEvent, users_by_id: Dict[UserID, UserTuple]
     }:
         yield from _get_additional_data_for_user_initiated_event(
             event, users_by_id)
+
+    if event.event_type in {
+            'user-deleted',
+            'user-suspended',
+            'user-unsuspended',
+    }:
+        yield 'reason', event.data['reason']
 
 
 def _get_additional_data_for_user_initiated_event(event: UserEvent,

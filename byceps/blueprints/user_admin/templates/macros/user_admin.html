@@ -33,7 +33,7 @@
     <div class="avatar">{{ render_user_avatar_image_with_fallback(user) }}</div>
   </div>
   <div class="user-microcard-names">
-    <div class="user-microcard-screen-name">{{ render_user_admin_link(user) }}</div>
+    <div class="user-microcard-screen-name">{{ render_user_admin_link(user) }}{% if user.suspended %} {{ render_user_flag_suspended(show_label=False) }}{% endif %}</div>
     <div class="user-microcard-full-name">{{ user.detail.full_name }}</div>
   </div>
 </div>
@@ -41,7 +41,7 @@
 
 
 {% macro render_user_flag_deleted(label='gelöscht', show_label=True) -%}
-  {{ render_tag(label if show_label else '', class='color-danger', icon='delete', title=None if show_label else label) }}
+  {{ render_tag(label if show_label else '', class='color-disabled', icon='delete', title=None if show_label else label) }}
 {%- endmacro %}
 
 
@@ -50,12 +50,32 @@
 {%- endmacro %}
 
 
+{% macro render_user_flag_suspended(label='gesperrt', show_label=True) -%}
+  {{ render_tag(label if show_label else '', class='color-danger', icon='lock', title=None if show_label else label) }}
+{%- endmacro %}
+
+
+{% macro render_most_important_user_flag(user, show_label=True) -%}
+  {%- if user.deleted -%}
+    {{ render_user_flag_deleted(show_label=show_label) }}
+  {%- elif user.suspended -%}
+    {{ render_user_flag_suspended(show_label=show_label) }}
+  {%- elif not user.enabled -%}
+    {{ render_user_flag_disabled(show_label=show_label) }}
+  {%- endif -%}
+{%- endmacro %}
+
+
 {% macro render_user_state_filter(user_state_filter) %}
   {%- if user_state_filter.name == 'enabled' -%}
-    {{ render_tag('aktiviert', class='user-state-enabled') }}
+    {{ render_tag('aktiviert', class='color-success') }}
   {%- elif user_state_filter.name == 'disabled' -%}
-    {{ render_tag('nicht aktiviert', class='user-state-disabled') }}
+    {{ render_tag('deaktiviert', class='color-warning') }}
+  {%- elif user_state_filter.name == 'suspended' -%}
+    {{ render_tag('gesperrt', class='color-danger') }}
+  {%- elif user_state_filter.name == 'deleted' -%}
+    {{ render_tag('gelöscht', class='color-disabled') }}
   {%- else -%}
-    {{ render_tag('keine') }}
+    {{ render_tag('keine', class='color-default') }}
   {%- endif -%}
 {%- endmacro %}

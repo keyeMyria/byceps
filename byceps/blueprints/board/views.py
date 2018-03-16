@@ -18,7 +18,7 @@ from ...services.user_badge import service as badge_service
 from ...util.framework.blueprint import create_blueprint
 from ...util.framework.flash import flash_error, flash_success
 from ...util.framework.templating import templated
-from ...util.views import redirect_to, respond_no_content_with_location
+from ...util.views import respond_no_content_with_location
 
 from ..authorization.decorators import permission_required
 from ..authorization.registry import permission_registry
@@ -145,10 +145,7 @@ def topic_view(topic_id, page):
         else:
             page = calculate_posting_page_number(posting)
             # Jump to a specific posting. This requires a redirect.
-            url = url_for('.topic_view',
-                          topic_id=topic.id,
-                          page=page,
-                          _anchor=posting.anchor)
+            url = _build_url_for_posting_in_topic_view(posting, page)
             return redirect(url, code=307)
 
     if not user.is_anonymous:
@@ -342,7 +339,7 @@ def topic_hide(topic_id):
                               moderator_id=moderator_id,
                               url=topic.external_url)
 
-    return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
+    return _build_url_for_topic_in_category_view(topic)
 
 
 @blueprint.route('/topics/<uuid:topic_id>/flags/hidden', methods=['DELETE'])
@@ -362,7 +359,7 @@ def topic_unhide(topic_id):
                                 moderator_id=moderator_id,
                                 url=topic.external_url)
 
-    return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
+    return _build_url_for_topic_in_category_view(topic)
 
 
 @blueprint.route('/topics/<uuid:topic_id>/flags/locked', methods=['POST'])
@@ -381,7 +378,7 @@ def topic_lock(topic_id):
                               moderator_id=moderator_id,
                               url=topic.external_url)
 
-    return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
+    return _build_url_for_topic_in_category_view(topic)
 
 
 @blueprint.route('/topics/<uuid:topic_id>/flags/locked', methods=['DELETE'])
@@ -401,7 +398,7 @@ def topic_unlock(topic_id):
                                 moderator_id=moderator_id,
                                 url=topic.external_url)
 
-    return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
+    return _build_url_for_topic_in_category_view(topic)
 
 
 @blueprint.route('/topics/<uuid:topic_id>/flags/pinned', methods=['POST'])
@@ -420,7 +417,7 @@ def topic_pin(topic_id):
                               moderator_id=moderator_id,
                               url=topic.external_url)
 
-    return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
+    return _build_url_for_topic_in_category_view(topic)
 
 
 @blueprint.route('/topics/<uuid:topic_id>/flags/pinned', methods=['DELETE'])
@@ -439,7 +436,7 @@ def topic_unpin(topic_id):
                                 moderator_id=moderator_id,
                                 url=topic.external_url)
 
-    return url_for('.category_view', slug=topic.category.slug, _anchor=topic.anchor)
+    return _build_url_for_topic_in_category_view(topic)
 
 
 @blueprint.route('/topics/<uuid:topic_id>/move', methods=['POST'])
@@ -472,9 +469,7 @@ def topic_move(topic_id):
                              moderator_id=moderator_id,
                              url=topic.external_url)
 
-    return redirect_to('.category_view',
-                       slug=topic.category.slug,
-                       _anchor=topic.anchor)
+    return redirect(_build_url_for_topic_in_category_view(topic))
 
 
 # -------------------------------------------------------------------- #
@@ -490,11 +485,8 @@ def posting_view(posting_id):
 
     page = calculate_posting_page_number(posting)
 
-    return redirect_to('.topic_view',
-                       topic_id=posting.topic.id,
-                       page=page,
-                       _anchor=posting.anchor,
-                       _external=True)
+    return redirect(
+        _build_url_for_posting_in_topic_view(posting, page, _external=True))
 
 
 @blueprint.route('/topics/<uuid:topic_id>/create')
@@ -564,10 +556,7 @@ def posting_create(topic_id):
     postings_per_page = _get_postings_per_page_value()
     page_count = topic.count_pages(postings_per_page)
 
-    return redirect_to('.topic_view',
-                       topic_id=topic.id,
-                       page=page_count,
-                       _anchor=posting.anchor)
+    return redirect(_build_url_for_posting_in_topic_view(posting, page_count))
 
 
 @blueprint.route('/postings/<uuid:posting_id>/update')
@@ -578,7 +567,7 @@ def posting_update_form(posting_id, erroneous_form=None):
     posting = _get_posting_or_404(posting_id)
 
     page = calculate_posting_page_number(posting)
-    url = url_for('.topic_view', topic_id=posting.topic.id, page=page)
+    url = _build_url_for_posting_in_topic_view(posting, page)
 
     user_may_update = posting.may_be_updated_by_user(g.current_user._user)
 
@@ -612,7 +601,7 @@ def posting_update(posting_id):
     posting = _get_posting_or_404(posting_id)
 
     page = calculate_posting_page_number(posting)
-    url = url_for('.topic_view', topic_id=posting.topic.id, page=page)
+    url = _build_url_for_posting_in_topic_view(posting, page)
 
     user_may_update = posting.may_be_updated_by_user(g.current_user._user)
 
@@ -671,10 +660,7 @@ def posting_hide(posting_id):
                                 moderator_id=moderator_id,
                                 url=posting.external_url)
 
-    return url_for('.topic_view',
-                   topic_id=posting.topic.id,
-                   page=page,
-                   _anchor=posting.anchor)
+    return _build_url_for_posting_in_topic_view(posting, page)
 
 
 @blueprint.route('/postings/<uuid:posting_id>/flags/hidden', methods=['DELETE'])
@@ -695,10 +681,7 @@ def posting_unhide(posting_id):
                                   moderator_id=moderator_id,
                                   url=posting.external_url)
 
-    return url_for('.topic_view',
-                   topic_id=posting.topic.id,
-                   page=page,
-                   _anchor=posting.anchor)
+    return _build_url_for_posting_in_topic_view(posting, page)
 
 
 def _get_board_id():
@@ -739,3 +722,17 @@ def _get_topics_per_page_value():
 
 def _get_postings_per_page_value():
     return int(current_app.config['BOARD_POSTINGS_PER_PAGE'])
+
+
+def _build_url_for_topic_in_category_view(topic):
+    return url_for('.category_view',
+                   slug=topic.category.slug,
+                   _anchor=topic.anchor)
+
+
+def _build_url_for_posting_in_topic_view(posting, page, **kwargs):
+    return url_for('.topic_view',
+                   topic_id=posting.topic.id,
+                   page=page,
+                   _anchor=posting.anchor,
+                   **kwargs)
